@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#151515">
+  <title>火柴人战争</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="火柴人战争">
+        <svg class="brand-mark" viewBox="0 0 56 56" aria-hidden="true">
+          <circle cx="18" cy="13" r="6"></circle><path d="M18 19v17M8 27l10-5 10 7M18 36 9 49M18 36l9 13"></path>
+          <circle cx="41" cy="13" r="6"></circle><path d="M41 19v17M31 29l10-7 9 5M41 36l-8 13M41 36l9 13"></path>
+          <path class="brand-spark" d="m28 18 3 5 5 2-5 3-2 5-2-5-5-3 5-2z"></path>
+        </svg>
+        <div>
+          <h1>火柴人战争</h1>
+          <p>全自动斗技场 · 第 01 场</p>
+        </div>
+      </div>
+
+      <div class="match-score" aria-label="当前对阵">
+        <div class="score-faction left-score"><i></i><span>赤焰军</span><strong id="left-alive">0</strong></div>
+        <div class="battle-clock"><span>对战时间</span><strong id="battle-time">00:00</strong></div>
+        <div class="score-faction right-score"><strong id="right-alive">0</strong><span>霜蓝卫</span><i></i></div>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-button audio-button" id="audio-button" type="button" title="关闭音乐" aria-label="关闭音乐">♪</button>
+        <button class="icon-button" id="pause-button" type="button" title="暂停" aria-label="暂停">Ⅱ</button>
+        <button class="speed-button" id="speed-button" type="button" title="切换速度">×1</button>
+        <button class="icon-button" id="restart-button" type="button" title="重新开始" aria-label="重新开始">↻</button>
+      </div>
+    </header>
+
+    <section class="live-strip" aria-label="自动对战状态">
+      <div><span class="live-dot"></span><strong>LIVE</strong> 双弹珠机已启动</div>
+      <p>上层战术分流 → 下层兵种储珠 → 满足消耗后自动部署</p>
+      <div class="round-status"><span>模式</span><strong>无人干预</strong></div>
+    </section>
+
+    <div class="arena-grid">
+      <aside class="machine-panel left-machine" aria-label="赤焰军自动出兵机">
+        <div class="machine-panel-title">
+          <div class="machine-faction"><i></i><div><span>左侧阵营</span><strong>赤焰出兵机</strong></div></div>
+          <div class="spawn-total"><span>已出兵</span><strong id="left-spawn-count">0</strong></div>
+        </div>
+        <div class="two-stage-machine">
+          <section class="machine-level upper-level" aria-label="赤焰上层战术分流">
+            <div class="level-header"><span>01 · 战术分流</span><strong><i class="pulse-dot"></i>1 珠 / 秒</strong></div>
+            <div class="mechanism-stage" id="left-upper-stage">
+              <div class="auto-cannon" id="left-upper-cannon"><span class="cannon-barrel"></span><span class="cannon-wheel"></span></div>
+              <div class="block-belt" aria-hidden="true">
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <div class="upper-pools" id="left-upper-pools">
+              <div class="function-pool troop-pool" data-result="troop"><span>兵种</span><strong>转入下层</strong><small id="left-troop-total">0 次</small></div>
+              <div class="function-pool split-pool" data-result="split"><span>分裂</span><strong>额外 +1 珠</strong><small id="left-split-total">0 次</small></div>
+              <div class="function-pool boost-pool" data-result="boost">
+                <span>强化</span><strong>天火审判</strong>
+                <div class="pool-charge"><i id="left-ultimate-bar"></i></div>
+                <small id="left-boost-total">0 / 20</small>
+              </div>
+            </div>
+          </section>
+          <div class="stage-transfer" id="left-transfer">
+            <span class="transfer-pipe" aria-hidden="true"></span>
+            <strong>兵种珠直达下层炮膛</strong><b>装填 ↓</b>
+          </div>
+          <section class="machine-level lower-level" aria-label="赤焰下层兵种分配">
+            <div class="level-header"><span>02 · 兵种储珠</span><strong id="left-lower-queue">等待兵种珠</strong></div>
+            <div class="mechanism-stage" id="left-lower-stage">
+              <div class="auto-cannon" id="left-lower-cannon"><span class="cannon-barrel"></span><span class="cannon-wheel"></span></div>
+              <div class="block-belt reverse" aria-hidden="true">
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <div class="unit-pools" id="left-unit-pools">
+              <div class="unit-pool tier-1" data-tier="0"><span>Ⅰ</span><strong>突击</strong><small id="left-pool-0">0 / 3</small></div>
+              <div class="unit-pool tier-2" data-tier="1"><span>Ⅱ</span><strong>长枪</strong><small id="left-pool-1">0 / 6</small></div>
+              <div class="unit-pool tier-3" data-tier="2"><span>Ⅲ</span><strong>狂战</strong><small id="left-pool-2">0 / 10</small></div>
+              <div class="unit-pool tier-4" data-tier="3"><span>Ⅳ</span><strong>统领</strong><small id="left-pool-3">0 / 16</small></div>
+            </div>
+          </section>
+          <div class="split-return-path" aria-hidden="true"><span class="return-arrow">回流至上层炮膛</span></div>
+        </div>
+      </aside>
+
+      <section class="battle-panel" aria-label="战场">
+        <div class="battle-status">
+          <div class="base-status player-status">
+            <span class="status-label"><i></i>赤焰要塞</span>
+            <div class="health-track"><span id="player-health-bar"></span></div>
+            <strong id="player-health">1600</strong>
+          </div>
+          <div class="versus-badge">交战中</div>
+          <div class="base-status enemy-status">
+            <strong id="enemy-health">1600</strong>
+            <div class="health-track"><span id="enemy-health-bar"></span></div>
+            <span class="status-label"><i></i>霜蓝要塞</span>
+          </div>
+        </div>
+
+        <div class="battlefield" id="battlefield">
+          <div class="sky-marks" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="watchtower player-base" aria-label="赤焰基地">
+            <div class="forge-chimney"><i></i><i></i></div>
+            <div class="forge-roof"></div>
+            <div class="forge-body"><span class="forge-door"></span><span class="forge-core"></span></div>
+            <div class="forge-flame"></div>
+            <div class="defense-tag">弩炮 40</div>
+          </div>
+          <div class="watchtower enemy-base" aria-label="霜蓝基地">
+            <div class="ice-spires"><i></i><i></i><i></i></div>
+            <div class="ice-crown"></div>
+            <div class="ice-body"><span class="ice-door"></span><span class="ice-core"></span></div>
+            <div class="ice-wings"></div>
+            <div class="defense-tag">弩炮 40</div>
+          </div>
+          <div class="frontline"><span>前线</span></div>
+          <div class="ground-details" aria-hidden="true"></div>
+          <div class="unit-layer" id="unit-layer"></div>
+          <div class="battle-callout" id="battle-callout">双层机器启动，主炮开始自动扫角</div>
+        </div>
+
+        <div class="battle-log" aria-live="polite">
+          <span class="live-dot"></span><strong>战报</strong><span id="battle-log-text">双方要塞正在自动部署部队。</span>
+        </div>
+      </section>
+
+      <aside class="machine-panel right-machine" aria-label="霜蓝卫自动出兵机">
+        <div class="machine-panel-title">
+          <div class="machine-faction"><i></i><div><span>右侧阵营</span><strong>霜蓝出兵机</strong></div></div>
+          <div class="spawn-total"><span>已出兵</span><strong id="right-spawn-count">0</strong></div>
+        </div>
+        <div class="two-stage-machine">
+          <section class="machine-level upper-level" aria-label="霜蓝上层战术分流">
+            <div class="level-header"><span>01 · 战术分流</span><strong><i class="pulse-dot"></i>1 珠 / 秒</strong></div>
+            <div class="mechanism-stage" id="right-upper-stage">
+              <div class="auto-cannon" id="right-upper-cannon"><span class="cannon-barrel"></span><span class="cannon-wheel"></span></div>
+              <div class="block-belt" aria-hidden="true">
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <div class="upper-pools" id="right-upper-pools">
+              <div class="function-pool troop-pool" data-result="troop"><span>兵种</span><strong>转入下层</strong><small id="right-troop-total">0 次</small></div>
+              <div class="function-pool split-pool" data-result="split"><span>分裂</span><strong>额外 +1 珠</strong><small id="right-split-total">0 次</small></div>
+              <div class="function-pool boost-pool" data-result="boost">
+                <span>强化</span><strong>绝对零度</strong>
+                <div class="pool-charge"><i id="right-ultimate-bar"></i></div>
+                <small id="right-boost-total">0 / 20</small>
+              </div>
+            </div>
+          </section>
+          <div class="stage-transfer" id="right-transfer">
+            <span class="transfer-pipe" aria-hidden="true"></span>
+            <strong>兵种珠直达下层炮膛</strong><b>装填 ↓</b>
+          </div>
+          <section class="machine-level lower-level" aria-label="霜蓝下层兵种分配">
+            <div class="level-header"><span>02 · 兵种储珠</span><strong id="right-lower-queue">等待兵种珠</strong></div>
+            <div class="mechanism-stage" id="right-lower-stage">
+              <div class="auto-cannon" id="right-lower-cannon"><span class="cannon-barrel"></span><span class="cannon-wheel"></span></div>
+              <div class="block-belt reverse" aria-hidden="true">
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span class="belt-loop"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <div class="unit-pools" id="right-unit-pools">
+              <div class="unit-pool tier-1" data-tier="0"><span>Ⅰ</span><strong>盾卫</strong><small id="right-pool-0">0 / 3</small></div>
+              <div class="unit-pool tier-2" data-tier="1"><span>Ⅱ</span><strong>冰弓</strong><small id="right-pool-1">0 / 6</small></div>
+              <div class="unit-pool tier-3" data-tier="2"><span>Ⅲ</span><strong>重甲</strong><small id="right-pool-2">0 / 10</small></div>
+              <div class="unit-pool tier-4" data-tier="3"><span>Ⅳ</span><strong>巨像</strong><small id="right-pool-3">0 / 16</small></div>
+            </div>
+          </section>
+          <div class="split-return-path" aria-hidden="true"><span class="return-arrow">回流至上层炮膛</span></div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="codex-panel" aria-label="参战兵种图鉴">
+      <div class="codex-heading">
+        <div><span class="eyebrow">自动对战阵容</span><h2>参战兵种图鉴</h2></div>
+        <p>轮廓、武器和动作均与战场单位一致</p>
+      </div>
+      <div class="codex-factions" id="codex-factions"></div>
+    </section>
+  </main>
+
+  <div class="result-modal" id="result-modal" hidden>
+    <div class="result-content">
+      <span class="eyebrow">自动对战结束</span>
+      <h2 id="result-title">赤焰获胜</h2>
+      <p id="result-copy">霜蓝要塞已被摧毁。</p>
+      <button id="result-restart" type="button">再看一场</button>
+    </div>
+  </div>
+
+  <script src="vendor/matter.min.js"></script>
+  <audio id="battle-bgm" src="Waterflame%20-%20Glorious%20Morning.mp3" preload="auto" loop></audio>
+  <script src="game.js"></script>
+</body>
+</html>

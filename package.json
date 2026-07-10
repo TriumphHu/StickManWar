@@ -1,0 +1,23 @@
+{
+  "name": "stickman-war-remotion-assets",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio remotion/index.ts",
+    "render:cannon": "remotion render remotion/index.ts CannonMarble out/cannon-marble.mp4",
+    "still:cannon": "remotion still remotion/index.ts CannonMarble out/cannon-marble.png --frame=105",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.353",
+    "@remotion/media": "^4.0.353",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "remotion": "^4.0.353"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
