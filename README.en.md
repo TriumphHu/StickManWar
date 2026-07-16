@@ -2,32 +2,41 @@
 
 [中文](README.md) | [English](README.en.md)
 
-An automated spectator battle demo. The Red Flame Army and Frost Blue Guard use their own two-stage marble machines to build forces, cast ultimates, and attack the opposing base without manual troop control.
+Stickman War is an automated spectator battle demo inspired by cybernetic cricket fighting. The viewer clicks once to draw two factions from four candidates. The selected sides then use integrated two-stage marble machines to build armies, cast abilities, and attack the opposing fortress.
 
 [Live demo](https://stickman-war-demo.pages.dev/)
 
 ## Current Gameplay
 
-- Both sides use the same marble-machine rules and automatically fire one base marble per second.
-- Upper-stage marbles land in Troop, Split, or Boost pools with width weights of `55:25:20`.
-- Troop marbles travel through a visible pipe into the lower cannon. Split marbles return to the upper stage, while 20 Boost hits automatically trigger an ultimate.
-- The four lower unit pools use `4:3:2:1` width weights. Unit tiers cost `3 / 6 / 10 / 16` marbles.
-- Units automatically march, acquire targets, attack, and destroy the enemy base. Spectator controls are limited to pause, speed, mute, and restart.
+- Four factions are available: Red Flame Army, Frost Blue Guard, Verdant Core Alliance, and Gilded Court. Each match draws two factions and assigns left/right positions.
+- Both machines fire one marble per second. Upper-stage results are settled from the real physical landing position, with current pool widths of `75% / 10% / 15%` for Troop, Split, and Boost.
+- Split turns one marble into two marbles that return around the machine frame to the upper cannon. Troop marbles travel through a visible pipe to the lower cannon at a constant speed.
+- The four lower unit pools use `4:3:2:1` width weights and cost `3 / 6 / 10 / 16` marbles to summon tiers I-IV.
+- Thirty Boost hits trigger the faction ultimate and reset the charge. When a fortress reaches `533 / 1600` HP, it releases one stronger emergency ability per match.
+- Units march, acquire targets, attack, and destroy the opposing fortress automatically. Spectator controls are pause, `×1/×2/×4` speed, mute, and restart.
 
-Marbles and obstacles are simulated with [Matter.js](https://brm.io/matter-js/). Outcomes are determined by the actual landing position, so the visual landing and game counter use the same geometry.
+Marbles, conveyor obstacles, gravity, and rebounds are simulated with [Matter.js](https://brm.io/matter-js/). Marbles spawn from the actual cannon muzzle, sweep between `20°` and `80°`, and use randomized launch force. The final landing position drives both the visual result and the game counter.
 
-## Factions and Ultimates
+## Factions, Units, and Abilities
 
-| Faction | Style | Four unit tiers | Ultimate |
-| --- | --- | --- | --- |
-| Red Flame Army | Offense and damage over time | Raider, Spearman, Berserker, Flameblade Commander | Heavenly Fire Judgment: area damage, knockback, burning, and base damage |
-| Frost Blue Guard | Defense and control | Shield Guard, Ice Archer, Heavy Guardian, Frost Colossus | Absolute Zero: freezes enemies, damages the base, and shields allies |
+| Faction | Role | Four unit tiers | Ultimate | Fortress emergency ability |
+| --- | --- | --- | --- | --- |
+| Red Flame Army | Frontline pressure and ramping damage | Raider, Spearman, Berserker, Flameblade Commander | Heavenly Fire Judgment | Inferno Descent |
+| Frost Blue Guard | High health and control | Shield Guard, Ice Archer, Heavy Guardian, Frost Colossus | Absolute Zero | Frozen Era |
+| Verdant Core Alliance | Healing, retaliation, and sustain | Vineblade Scout, Spore Lobber, Thorn Warden, Ancient Tree Titan | Verdant Rebirth | Reclaiming Roots |
+| Gilded Court | Chain lightning and burst pressure | Arc Acolyte, Dawnbound Crossbow, Storm Vanguard, Solar Archon | Corona Overload | Stellar Flare |
 
-Each tier has a progressively larger silhouette. Helmets, armor, weapons, auras, and distinct walk, attack, and hit reactions make high-tier units easy to identify.
+Every tier has a visibly larger silhouette, armor, weapon, aura, and particle treatment. The four commanders also have live combat skills: Flame Command, Frost Bastion, Verdant Revival, and Solar Verdict. These skills change unit health, shields, speed, control, damage, or fortress health in the battle state.
+
+Ranged units launch faction-specific arrows, spores, and prism bolts from their hand-held weapon mounts. Projectiles travel toward chest height and resolve damage on arrival.
+
+## Developer Test Tool
+
+Open the `T` button in the top bar to reveal direct summon controls for tiers I-IV on both sides. Test summons appear at the frontline without consuming marble pools. Tier-IV commanders become ready quickly, making it practical to test unit art, attacks, hits, projectiles, and commander skills without waiting for random production.
 
 ## Run Locally
 
-This is a static site, so you can open `index.html` directly. Alternatively, start a local static server from the project directory:
+This is a static site with no backend. Open `index.html` directly, or start a local server from the project directory:
 
 ```powershell
 python -m http.server 8765 --bind 127.0.0.1
@@ -35,11 +44,26 @@ python -m http.server 8765 --bind 127.0.0.1
 
 Then open `http://127.0.0.1:8765/`.
 
-The battle BGM is `Waterflame - Glorious Morning.mp3`. If autoplay is blocked, playback starts after the first click or key press.
+The BGM is `Waterflame - Glorious Morning.mp3`. It is muted by default and can be enabled from the music button.
+
+## Project Structure
+
+```text
+.
+|-- index.html                 # Page structure and draw screen
+|-- styles.css                # UI, unit motion, projectiles, and effects
+|-- game.js                   # Matter.js marble, spawning, combat, and skills
+|-- DESIGN.md                 # Gameplay, balance, and visual specification
+|-- unit-art-preview.html     # Standalone unit and commander art preview
+|-- vendor/                   # Matter.js and its license
+|-- remotion/                 # Cannon-and-marble video composition
+|-- package.json              # Remotion and TypeScript commands
+`-- Waterflame - Glorious Morning.mp3
+```
 
 ## Remotion Helper Assets
 
-`remotion/` contains a standalone cannon-and-marble composition for video asset production. It is not used for real-time browser physics.
+`remotion/` is used for video and still generation only. It does not calculate the browser's real-time rigid-body simulation.
 
 ```powershell
 npm install
@@ -49,27 +73,11 @@ npm run still:cannon
 npm run typecheck
 ```
 
-Rendered files are written to `out/`.
-
-## Project Structure
-
-```text
-.
-|-- index.html                 # Page structure
-|-- styles.css                # UI, unit animation, and ultimate effects
-|-- game.js                   # Marble physics, spawning, and combat logic
-|-- DESIGN.md                 # Current gameplay and balance specification
-|-- vendor/                   # Matter.js and its license
-|-- remotion/                 # Cannon-and-marble video composition
-|-- package.json              # Remotion and TypeScript commands
-`-- Waterflame - Glorious Morning.mp3
-```
-
 ## Deploy to Cloudflare Pages
 
-The project has no backend and can be deployed as a static site. For a repository deployment, use the repository root as the published content. For Direct Upload, upload the complete static directory containing `index.html`, styles, scripts, audio, and `vendor/`.
+The project has no backend and can be deployed as a static site. Use the repository root as the Cloudflare Pages output directory, or Direct Upload the complete static directory containing `index.html`, styles, scripts, audio, and `vendor/`.
 
-Cloudflare Pages provides HTTPS and a `pages.dev` URL. The current deployment is:
+Current deployment:
 
 ```text
 https://stickman-war-demo.pages.dev/
