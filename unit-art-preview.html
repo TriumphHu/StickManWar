@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>火柴人战争 · 统领视觉提案</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Microsoft YaHei", system-ui, sans-serif; background: #111311; color: #ece9df; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% 0, #262825 0, #111311 48%); }
+    main { width: min(1400px, 100%); margin: 0 auto; padding: 28px 22px 40px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid #3a3d38; }
+    header small { color: #8e948b; font-size: 10px; font-weight: 800; }
+    h1 { margin: 5px 0 0; font-size: 28px; letter-spacing: 0; }
+    header span { color: #a8ada4; font-size: 11px; }
+    .roster { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+    .unit-card { --accent: #eee; position: relative; min-width: 0; overflow: hidden; border: 1px solid #454842; border-top: 3px solid var(--accent); border-radius: 6px; background: #1b1e1b; box-shadow: 0 12px 28px rgba(0,0,0,.24); }
+    .unit-card::before { content: ""; position: absolute; inset: 42% 0 0; opacity: .16; background: linear-gradient(145deg, transparent 25%, var(--accent)); }
+    .portrait { position: relative; height: 350px; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, #1b1e1b), #141614); }
+    .portrait::after { content: ""; position: absolute; left: 50%; bottom: 21px; width: 72%; height: 28px; border: 2px solid color-mix(in srgb, var(--accent) 42%, transparent); border-radius: 50%; box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 22%, transparent); transform: translateX(-50%); animation: ground-pulse 1.8s ease-in-out infinite alternate; }
+    svg { position: absolute; z-index: 1; left: 50%; bottom: 10px; width: 270px; max-width: 105%; height: 330px; transform: translateX(-50%); filter: drop-shadow(0 12px 7px rgba(0,0,0,.45)); }
+    .aura { transform-origin: center; animation: aura 2.2s ease-in-out infinite alternate; }
+    .weapon { transform-box: fill-box; transform-origin: 50% 82%; animation: weapon-idle 1.9s ease-in-out infinite alternate; }
+    .cape { animation: cape 2s ease-in-out infinite alternate; }
+    .unit-meta { position: relative; z-index: 2; min-height: 145px; padding: 13px 14px 15px; border-top: 1px solid #3f423d; background: rgba(24,27,24,.92); }
+    .eyebrow { color: var(--accent); font-size: 9px; font-weight: 900; }
+    h2 { margin: 5px 0 2px; font-size: 19px; letter-spacing: 0; }
+    .role { color: #949a91; font-size: 9px; }
+    .skill { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #383b36; }
+    .skill b { color: var(--accent); font-size: 10px; }
+    .skill i { justify-self: end; color: #757b73; font-size: 8px; font-style: normal; }
+    .skill p { grid-column: 1 / -1; margin: 0; color: #b1b6ad; font-size: 9px; line-height: 1.5; }
+    .red { --accent: #f04f3d; }
+    .blue { --accent: #55a9f5; }
+    .green { --accent: #5bc873; }
+    .yellow { --accent: #f0c940; }
+    @keyframes ground-pulse { to { opacity: .45; scale: 1.08 .8; } }
+    @keyframes aura { to { opacity: .45; transform: scale(1.08); } }
+    @keyframes weapon-idle { to { transform: rotate(2.5deg) translateY(-2px); } }
+    @keyframes cape { to { transform: skewX(-2deg) translateX(2px); } }
+    @media (max-width: 1000px) { .roster { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 560px) { main { padding: 18px 8px 28px; } header { align-items: start; flex-direction: column; } .roster { grid-template-columns: 1fr; } .portrait { height: 330px; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><div><small>UNIT ART DIRECTION · TIER IV</small><h1>四阵营统领视觉提案</h1></div><span>矢量骨骼 / 分层装备 / 战场轮廓</span></header>
+    <section class="roster">
+      <article class="unit-card red">
+        <div class="portrait">
+          <svg viewBox="0 0 260 330" role="img" aria-label="炎刃统领">
+            <defs><linearGradient id="redArmor" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff9b57"/><stop offset=".45" stop-color="#bd382f"/><stop offset="1" stop-color="#471d1b"/></linearGradient></defs>
+            <g class="aura" fill="none" stroke="#f04f3d" opacity=".28"><circle cx="130" cy="170" r="85"/><circle cx="130" cy="170" r="103" stroke-dasharray="4 13"/></g>
+            <path class="cape" d="M99 121 Q65 172 78 273 L127 239 141 139Z" fill="#551d20" stroke="#f04f3d" stroke-width="3"/>
+            <g stroke="#211817" stroke-width="7" stroke-linecap="round"><path d="M118 156L96 220L84 287"/><path d="M136 156L153 222L169 286"/><path d="M116 151L84 190L70 226"/><path d="M139 151L173 183L190 210"/></g>
+            <path d="M102 113L129 92L158 113L150 178L107 178Z" fill="url(#redArmor)" stroke="#ff7461" stroke-width="4"/>
+            <path d="M94 127L65 145L76 176L106 157ZM160 126L191 143L181 176L150 156Z" fill="#7f2b28" stroke="#f04f3d" stroke-width="4"/>
+            <circle cx="130" cy="78" r="25" fill="#242321" stroke="#ff7b55" stroke-width="6"/>
+            <path d="M99 72L112 43L127 55L143 37L162 72Z" fill="#f04f3d" stroke="#ff9b57" stroke-width="4"/>
+            <path d="M114 80L127 86L146 74" fill="none" stroke="#ffd0ad" stroke-width="4"/>
+            <g class="weapon"><path d="M191 207L207 274" stroke="#5b2b22" stroke-width="12"/><path d="M186 216L220 207" stroke="#f0b06b" stroke-width="8"/><path d="M196 205Q220 134 202 63Q229 112 224 181L211 216Z" fill="#ff7c3e" stroke="#ffd08b" stroke-width="4"/><path d="M206 84L219 153" stroke="#fff0b4" stroke-width="3" opacity=".8"/></g>
+            <path d="M76 285H101L104 298H65ZM154 285H179L191 298H151Z" fill="#7f2b28" stroke="#f04f3d" stroke-width="4"/>
+          </svg>
+        </div>
+        <div class="unit-meta"><span class="eyebrow">赤焰军 · 统领</span><h2>炎刃统领</h2><span class="role">重刃核心 / 近战号令</span><div class="skill"><b>炎军号令</b><i>冷却 10 秒</i><p>点燃战旗，使附近盟军获得 5 秒急速。</p></div></div>
+      </article>
+      <article class="unit-card blue">
+        <div class="portrait">
+          <svg viewBox="0 0 260 330" role="img" aria-label="寒霜巨像">
+            <defs><linearGradient id="blueArmor" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d8f7ff"/><stop offset=".4" stop-color="#4b9bd1"/><stop offset="1" stop-color="#183751"/></linearGradient></defs>
+            <g class="aura" fill="none" stroke="#55a9f5" opacity=".32"><path d="M30 244L58 69L95 117L130 25L159 116L207 63L229 244Z"/><circle cx="131" cy="175" r="103" stroke-dasharray="3 11"/></g>
+            <g stroke="#172c3c" stroke-width="12" stroke-linecap="round"><path d="M111 165L96 229L82 291"/><path d="M147 164L157 231L175 291"/><path d="M105 145L66 181L54 226"/><path d="M153 145L184 177L198 221"/></g>
+            <path d="M91 112L128 92L168 114L159 190L99 190Z" fill="url(#blueArmor)" stroke="#9ae4ff" stroke-width="5"/>
+            <path d="M88 118L50 141L63 183L101 158ZM170 118L210 141L196 184L158 158Z" fill="#315f7f" stroke="#79caf5" stroke-width="5"/>
+            <circle cx="130" cy="74" r="29" fill="#182a36" stroke="#aeeeff" stroke-width="7"/>
+            <path d="M95 71L110 30L130 49L150 26L166 71L151 59L130 72L111 57Z" fill="#72c9f5" stroke="#d6f7ff" stroke-width="4"/>
+            <path d="M112 78H147" stroke="#b9f3ff" stroke-width="5"/>
+            <g class="weapon"><path d="M49 219L63 281" stroke="#21445d" stroke-width="13"/><path d="M35 98L70 83L91 119L68 202L34 184L48 150Z" fill="#5ab4e5" stroke="#d5f8ff" stroke-width="5"/><path d="M40 112L69 94M37 145L75 123M35 176L70 155" stroke="#e3fbff" stroke-width="3"/></g>
+            <path d="M66 287H101L101 301H57ZM154 287H188L198 301H153Z" fill="#315f7f" stroke="#79caf5" stroke-width="5"/>
+          </svg>
+        </div>
+        <div class="unit-meta"><span class="eyebrow">霜蓝卫 · 统领</span><h2>寒霜巨像</h2><span class="role">重甲控制 / 冰脉护阵</span><div class="skill"><b>冰脉壁垒</b><i>冷却 11 秒</i><p>为附近盟军施加护盾，并冻结最接近的敌人。</p></div></div>
+      </article>
+      <article class="unit-card green">
+        <div class="portrait">
+          <svg viewBox="0 0 260 330" role="img" aria-label="古树泰坦">
+            <defs><linearGradient id="greenArmor" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a9e493"/><stop offset=".48" stop-color="#427e45"/><stop offset="1" stop-color="#203b28"/></linearGradient></defs>
+            <g class="aura" fill="none" stroke="#5bc873" opacity=".34"><circle cx="130" cy="173" r="100" stroke-dasharray="2 10"/><path d="M24 246Q72 218 52 158Q98 189 130 45Q159 188 210 150Q187 220 238 246"/></g>
+            <g stroke="#253c28" stroke-width="14" stroke-linecap="round"><path d="M111 168L99 231L72 293"/><path d="M148 168L158 234L188 293"/><path d="M103 143L62 174L43 216"/><path d="M157 142L195 173L215 215"/></g>
+            <path d="M91 110L127 89L169 113L162 194L98 194Z" fill="url(#greenArmor)" stroke="#79d786" stroke-width="5"/>
+            <path d="M93 117L54 134L64 181L101 158ZM169 116L207 134L199 181L159 157Z" fill="#315f39" stroke="#6acb77" stroke-width="5"/>
+            <circle cx="130" cy="73" r="29" fill="#243328" stroke="#83db8b" stroke-width="6"/>
+            <path d="M100 69Q92 38 111 47Q117 17 131 48Q151 18 150 53Q176 36 160 74Z" fill="#487f45" stroke="#8fe294" stroke-width="4"/>
+            <path d="M115 75L128 82L146 70" fill="none" stroke="#d3ffc9" stroke-width="4"/>
+            <g class="weapon"><path d="M212 124L196 277" stroke="#4b3423" stroke-width="13"/><path d="M211 104Q234 107 230 133Q210 148 192 128Q193 107 211 104Z" fill="#3e6941" stroke="#94e49a" stroke-width="5"/><path d="M207 105Q196 77 219 65Q225 87 214 107M220 113Q247 92 248 119Q236 133 221 129" fill="#64ba68" stroke="#a5efa8" stroke-width="4"/></g>
+            <path d="M55 289H94L97 302H42ZM164 289H201L215 302H161Z" fill="#315f39" stroke="#6acb77" stroke-width="5"/>
+          </svg>
+        </div>
+        <div class="unit-meta"><span class="eyebrow">翠核同盟 · 统领</span><h2>古树泰坦</h2><span class="role">再生光环 / 阵线修复</span><div class="skill"><b>森灵复苏</b><i>冷却 12 秒</i><p>治疗附近盟军，并修复少量要塞生命。</p></div></div>
+      </article>
+      <article class="unit-card yellow">
+        <div class="portrait">
+          <svg viewBox="0 0 260 330" role="img" aria-label="曜日执政官">
+            <defs><linearGradient id="yellowArmor" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff2a0"/><stop offset=".44" stop-color="#d5a82f"/><stop offset="1" stop-color="#5b451b"/></linearGradient></defs>
+            <g class="aura" fill="none" stroke="#f0c940" opacity=".34"><circle cx="130" cy="75" r="48" stroke-width="8" stroke-dasharray="3 10"/><circle cx="130" cy="173" r="105" stroke-dasharray="5 13"/></g>
+            <path class="cape" d="M104 116Q75 166 77 270L127 237L151 124Z" fill="#5d4318" stroke="#f0c940" stroke-width="4"/>
+            <g stroke="#352b17" stroke-width="8" stroke-linecap="round"><path d="M116 160L99 226L87 291"/><path d="M143 160L157 226L173 291"/><path d="M112 145L78 183L66 222"/><path d="M149 145L180 181L192 218"/></g>
+            <path d="M99 108L129 88L164 111L154 185L104 185Z" fill="url(#yellowArmor)" stroke="#ffe66d" stroke-width="4"/>
+            <path d="M96 117L63 140L74 176L106 156ZM166 116L198 138L188 177L154 156Z" fill="#8f6a20" stroke="#f4cd4a" stroke-width="4"/>
+            <circle cx="130" cy="73" r="26" fill="#2f2a1b" stroke="#ffe36a" stroke-width="6"/>
+            <path d="M101 69L108 41L124 51L132 27L143 51L160 39L164 70L146 59L130 68L113 58Z" fill="#f0c940" stroke="#fff0a4" stroke-width="4"/>
+            <path d="M113 77H148" stroke="#fff4b0" stroke-width="4"/>
+            <g class="weapon"><path d="M204 79L203 288" stroke="#9a7224" stroke-width="10"/><path d="M203 48L227 78L204 106L180 78Z" fill="#f0c940" stroke="#fff2a0" stroke-width="4"/><path d="M176 125L203 106L230 125L203 139Z" fill="#cf9c29" stroke="#ffe66d" stroke-width="4"/><path d="M203 50V104M184 78H222" stroke="#fff8ca" stroke-width="3"/></g>
+            <path d="M70 288H103L106 301H61ZM155 288H187L197 301H153Z" fill="#8f6a20" stroke="#f4cd4a" stroke-width="4"/>
+          </svg>
+        </div>
+        <div class="unit-meta"><span class="eyebrow">鎏金王庭 · 统领</span><h2>曜日执政官</h2><span class="role">连锁雷光 / 超载核心</span><div class="skill"><b>日轮裁决</b><i>冷却 10.5 秒</i><p>轰击附近敌军，并使附近盟军进入急速。</p></div></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
