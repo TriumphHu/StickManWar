@@ -27,7 +27,7 @@ body {
   background-size: 32px 32px;
   letter-spacing: 0;
 }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { letter-spacing: 0; }
 h1, h2, h3, p { margin: 0; }
 
@@ -71,9 +71,32 @@ body.draw-open { overflow: hidden; }
 .draw-result.revealed i { color: var(--draw-color); border-color: var(--draw-color); box-shadow: 0 0 16px color-mix(in srgb, var(--draw-color) 45%, transparent); }
 .draw-start { min-width: 210px; height: 48px; margin-top: 24px; border: 1px solid #f5dc65; border-radius: 4px; color: #151515; background: var(--yellow); font-size: 13px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 30px rgba(240,201,64,.18); }
 .draw-start:disabled { color: #8d897e; border-color: #4b4943; background: #292a28; cursor: wait; box-shadow: none; }
+.draw-actions { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
+.draw-actions .draw-start { margin-top: 0; }
+.tournament-toggle { min-width: 210px; height: 48px; display: grid; grid-template-columns: 38px minmax(0,1fr); align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #4d4a44; border-radius: 4px; text-align: left; background: #232422; cursor: pointer; }
+.tournament-toggle input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+.toggle-track { position: relative; width: 36px; height: 20px; border: 1px solid #625f57; border-radius: 10px; background: #171817; transition: border-color .2s ease, background .2s ease; }
+.toggle-track i { position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #858178; transition: translate .2s ease, background .2s ease, box-shadow .2s ease; }
+.tournament-toggle input:checked + .toggle-track { border-color: var(--yellow); background: color-mix(in srgb, var(--yellow) 18%, #171817); }
+.tournament-toggle input:checked + .toggle-track i { translate: 16px 0; background: var(--yellow); box-shadow: 0 0 9px rgba(240,201,64,.55); }
+.tournament-toggle input:focus-visible + .toggle-track { outline: 2px solid #fff; outline-offset: 2px; }
+.tournament-toggle strong, .tournament-toggle small { display: block; }
+.tournament-toggle strong { color: #e8e3d7; font-size: 11px; }
+.tournament-toggle small { margin-top: 2px; color: #8f8b82; font-size: 8px; }
+.tournament-preview { width: min(760px,100%); display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 8px; margin: 12px auto 0; padding: 9px; border-top: 1px solid #4d4a44; border-bottom: 1px solid #4d4a44; background: rgba(25,26,25,.78); }
+.tournament-preview[hidden] { display: none; }
+.tournament-preview div { min-width: 0; display: grid; gap: 3px; }
+.tournament-preview span { color: var(--yellow); font-size: 8px; font-weight: 900; }
+.tournament-preview strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-preview > i { color: #67645d; font-style: normal; }
+.tournament-preview-summary { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid #393733; }
+.tournament-preview-summary p { color: #8f8b82; font-size: 8px; }
+.tournament-preview-summary button { height: 24px; padding: 0 8px; border: 1px solid #67423c; border-radius: 3px; color: #dd8d81; background: #2d201e; font-size: 8px; cursor: pointer; }
+.tournament-preview-summary button:hover { color: #171716; border-color: #ff9b8d; background: #ff9b8d; }
+.tournament-preview-summary button[hidden] { display: none; }
 
 .game-shell { width: min(1540px, 100%); min-height: 100vh; margin: 0 auto; padding: 18px 20px 28px; }
-.topbar, .live-strip, .machine-panel, .battle-panel, .codex-panel { border: 1px solid var(--line); background: rgba(31,31,30,.97); }
+.topbar, .live-strip, .machine-panel, .battle-panel, .codex-panel, .tournament-panel { border: 1px solid var(--line); background: rgba(31,31,30,.97); }
 .topbar {
   min-height: 70px;
   display: grid;
@@ -97,6 +120,8 @@ body.draw-open { overflow: hidden; }
 .left-score { justify-content: flex-end; }
 .right-score i { background: var(--blue); box-shadow: 0 0 10px rgba(85,169,245,.4); }
 .top-actions { position: relative; z-index: 30; justify-self: end; display: flex; gap: 7px; }
+.dev-mode .top-actions { z-index: 150; }
+.draw-open.dev-mode .top-actions > :not(.dev-tools) { visibility: hidden; }
 .icon-button, .speed-button {
   height: 36px; min-width: 36px; border: 1px solid #53514c; border-radius: 4px;
   color: var(--paper); background: #292928; cursor: pointer;
@@ -105,16 +130,31 @@ body.draw-open { overflow: hidden; }
 .speed-button { min-width: 48px; font-weight: 800; }
 .audio-button { color: var(--yellow); font-size: 18px; }
 .audio-button.muted { color: #77736c; }
-.dev-tools { position: relative; }
+.dev-tools { position: relative; display: none; }
+.dev-mode .dev-tools { display: block; }
 .dev-tools-toggle[aria-expanded="true"] { color: #171716; border-color: var(--yellow); background: var(--yellow); }
-.dev-panel { position: absolute; top: 43px; right: 0; width: 250px; padding: 8px; border: 1px solid #5d5951; border-radius: 4px; background: #1d1d1c; box-shadow: 0 12px 28px rgba(0,0,0,.42); }
+.dev-panel { position: fixed; z-index: 160; top: 62px; right: 12px; width: 330px; max-width: calc(100vw - 24px); max-height: calc(100vh - 74px); overflow-y: auto; padding: 8px; border: 1px solid #5d5951; border-radius: 4px; background: #1d1d1c; box-shadow: 0 12px 28px rgba(0,0,0,.42); }
 .dev-panel[hidden] { display: none; }
-.dev-side { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 38px; }
+.dev-panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 2px 7px; border-bottom: 1px solid #393733; }
+.dev-panel-header > strong { color: var(--yellow); font-size: 11px; }
+.dev-panel-header button { width: 26px; height: 26px; padding: 0; border: 0; color: #aaa69f; background: transparent; font-size: 18px; cursor: pointer; }
+.dev-panel-header button:hover { color: var(--paper); }
+.dev-matchup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 6px; padding: 8px 2px; border-bottom: 1px solid #393733; }
+.dev-matchup label { display: grid; gap: 4px; color: #9d998f; font-size: 8px; font-weight: 800; }
+.dev-matchup select { width: 100%; height: 30px; padding: 0 6px; border: 1px solid #55524d; border-radius: 3px; color: #ece8dc; background: #292928; font-size: 10px; }
+.dev-matchup > b { align-self: center; color: #77736c; font-size: 9px; }
+.dev-matchup > button { grid-column: 1 / -1; height: 30px; border: 1px solid var(--yellow); border-radius: 3px; color: #171716; background: var(--yellow); font-size: 10px; font-weight: 900; cursor: pointer; }
+.dev-matchup > button:hover { filter: brightness(1.12); }
+.dev-side { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 7px 8px; min-height: 73px; padding: 7px 2px; }
 .dev-side + .dev-side { border-top: 1px solid #393733; }
 .dev-side > strong { overflow: hidden; color: #d8d3c8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .dev-tier-buttons { display: grid; grid-template-columns: repeat(4, 30px); gap: 4px; }
 .dev-tier-buttons button { width: 30px; height: 28px; padding: 0; border: 1px solid #55524d; border-radius: 3px; color: #ece8dc; background: #2b2b29; font-size: 11px; font-weight: 900; cursor: pointer; }
-.dev-tier-buttons button:hover { color: #181817; border-color: var(--yellow); background: var(--yellow); }
+.dev-tier-buttons button:hover, .dev-skill-buttons button:hover { color: #181817; border-color: var(--yellow); background: var(--yellow); }
+.dev-skill-buttons { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.dev-skill-buttons button, .dev-clear-button { min-width: 0; height: 28px; border: 1px solid #55524d; border-radius: 3px; color: #d9d5c9; background: #292928; font-size: 9px; font-weight: 800; cursor: pointer; }
+.dev-clear-button { width: 100%; color: #ff9b8d; border-color: #713f38; background: #30201e; }
+.dev-clear-button:hover { color: #171716; border-color: #ff9b8d; background: #ff9b8d; }
 
 .live-strip {
   min-height: 45px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px;
@@ -267,10 +307,19 @@ body.draw-open { overflow: hidden; }
 .solar-overload > i:nth-child(3) { left: 56%; animation-delay: .26s; }
 .solar-overload > i:nth-child(4) { left: 77%; animation-delay: .39s; }
 .solar-overload > b { position: absolute; left: 5%; right: 5%; top: 44%; height: 4px; background: #fff2a0; box-shadow: 0 0 16px #f0c940; opacity: 0; animation: chain-flash 1s ease-out .25s forwards; }
-.fortress-ultimate::before { content: ""; position: absolute; z-index: 20; inset: 4%; border: 3px solid var(--fortress-color); opacity: 0; box-shadow: inset 0 0 90px color-mix(in srgb, var(--fortress-color) 42%, transparent), 0 0 24px var(--fortress-color); animation: fortress-warning var(--fortress-duration) ease-out forwards; }
+.fortress-ultimate::before { content: attr(data-fortress-name); position: absolute; z-index: 20; inset: 4%; display: grid; place-items: start center; padding-top: 13px; border: 4px solid var(--fortress-color); color: #fff; opacity: 0; font-size: 18px; font-weight: 900; text-shadow: 0 0 7px #000, 0 0 16px var(--fortress-color); box-shadow: inset 0 0 130px color-mix(in srgb, var(--fortress-color) 55%, transparent), 0 0 34px var(--fortress-color); animation: fortress-warning var(--fortress-duration) ease-out forwards; }
+.fortress-ultimate::after { content: ""; position: absolute; z-index: 18; pointer-events: none; opacity: 0; }
 .fortress-ultimate.meteor-storm > i { width: 13px; box-shadow: 0 0 22px #ffdf64, 0 0 48px rgba(240,79,61,.9); }
 .fortress-ultimate.frost-wave > i { width: 42%; filter: blur(3px) brightness(1.35); }
-@keyframes fortress-warning { 0%,100% { opacity: 0; scale: .96; } 15%,68% { opacity: .9; scale: 1; } }
+.fortress-red::after { left: 46%; top: -22%; width: 9%; height: 116%; border-radius: 50%; background: linear-gradient(to bottom, transparent, #fff4a3 30%, #ff7a35 62%, rgba(240,79,61,.18)); box-shadow: 0 0 34px #ffb13b, 0 0 90px #f04f3d; rotate: 12deg; animation: inferno-descent var(--fortress-duration) ease-in forwards; }
+.fortress-blue::after { left: 50%; top: 50%; width: 230px; height: 230px; border: 13px double #e9fbff; background: repeating-conic-gradient(from 12deg, rgba(217,247,255,.72) 0 4deg, transparent 4deg 30deg); filter: drop-shadow(0 0 24px #55a9f5); translate: -50% -50%; rotate: 0deg; animation: frozen-era var(--fortress-duration) ease-out forwards; }
+.fortress-green::after { left: 8%; right: 8%; bottom: 7%; height: 47%; border: 12px double #9dffa6; border-radius: 50% 50% 10% 10%; background: repeating-radial-gradient(ellipse at bottom, rgba(91,200,115,.58) 0 7px, transparent 9px 28px); filter: drop-shadow(0 0 22px #5bc873); animation: root-reclamation var(--fortress-duration) ease-out forwards; }
+.fortress-yellow::after { left: 50%; top: 7%; width: 150px; height: 150px; border: 9px double #fff6ad; border-radius: 50%; background: repeating-conic-gradient(#fff2a0 0 4deg, transparent 4deg 15deg), radial-gradient(circle, #fff 0 13%, #f0c940 38%, transparent 70%); box-shadow: 0 0 35px #fff1a0, 0 0 95px #f0c940; translate: -50% 0; animation: stellar-flare var(--fortress-duration) ease-out forwards; }
+@keyframes fortress-warning { 0%,100% { opacity: 0; scale: .9; } 10%,76% { opacity: .96; scale: 1; } 18%,22%,30% { filter: brightness(1.8); } }
+@keyframes inferno-descent { 0% { opacity: 0; translate: -130px -45%; scale: .25 1; } 22%,72% { opacity: .94; translate: 0 0; scale: 1; } 100% { opacity: 0; scale: 2.8 1; } }
+@keyframes frozen-era { 0% { opacity: 0; scale: .15; rotate: -60deg; } 24%,76% { opacity: .9; scale: 1; rotate: 30deg; } 100% { opacity: 0; scale: 2.4; rotate: 90deg; } }
+@keyframes root-reclamation { 0% { opacity: 0; scale: 1 .05; } 25%,78% { opacity: .9; scale: 1 1; } 100% { opacity: 0; scale: 1.25 1.35; } }
+@keyframes stellar-flare { 0% { opacity: 0; scale: .18; rotate: -45deg; } 22%,70% { opacity: 1; scale: 1; rotate: 25deg; } 100% { opacity: 0; scale: 3.2; rotate: 80deg; } }
 @keyframes ice-sweep { from { translate: 0; } to { translate: -410%; } }
 @keyframes ice-sweep-right { from { translate: 0; } to { translate: 410%; } }
 @keyframes frost-flash { 12% { box-shadow: inset 0 0 160px rgba(210,246,255,.78); } 100% { box-shadow: inset 0 0 40px transparent; } }
@@ -550,6 +599,93 @@ body.draw-open { overflow: hidden; }
 .unit-yellow.unit-4 .weapon { top: -4px; right: -12px; width: 9px; height: 76px; transform: rotate(26deg); box-shadow: 0 0 7px currentColor; }
 .unit-yellow.unit-4 .weapon::after { left: -13px; width: 35px; height: 25px; clip-path: polygon(50% 0,100% 50%,65% 100%,50% 70%,35% 100%,0 50%); }
 
+/* Side-view cutout rig shared by the battlefield and codex. */
+.side-unit-art { position: absolute; z-index: 3; left: -12px; top: -10px; width: 68px; height: 94px; overflow: visible; color: currentColor; filter: drop-shadow(0 2px 1px rgba(0,0,0,.48)) drop-shadow(0 0 3px color-mix(in srgb, currentColor 28%, transparent)); }
+.side-unit-art * { vector-effect: non-scaling-stroke; }
+.side-character-root, .side-limb, .side-front-shin, .side-back-shin, .side-profile-head, .side-torso, .side-weapon { transform-box: fill-box; }
+.side-character-root { transform-origin: 50% 88%; }
+.side-front-leg, .side-back-leg { transform-origin: 50% 8%; }
+.side-front-shin, .side-back-shin { transform-origin: 50% 8%; }
+.side-front-arm, .side-back-arm { transform-origin: 50% 8%; }
+.side-profile-head { transform-origin: 50% 85%; }
+.side-torso { transform-origin: 50% 80%; }
+.side-weapon { transform-origin: 84px 89px; }
+.side-aura { fill: color-mix(in srgb, currentColor 14%, transparent); stroke: currentColor; stroke-width: 2; opacity: 0; }
+.side-cape { fill: color-mix(in srgb, currentColor 30%, #161917); stroke: color-mix(in srgb, currentColor 72%, #fff); stroke-width: 2; opacity: .72; transform-origin: 72% 10%; }
+.side-thigh, .side-shin, .side-arm-line { fill: none; stroke: color-mix(in srgb, currentColor 50%, #171917); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.side-joint { fill: color-mix(in srgb, currentColor 66%, #171917); stroke: color-mix(in srgb, currentColor 80%, #fff); stroke-width: 1.5; }
+.side-foot, .side-gauntlet { fill: color-mix(in srgb, currentColor 48%, #202320); stroke: color-mix(in srgb, currentColor 83%, #fff); stroke-width: 2; stroke-linejoin: round; }
+.side-waist { fill: color-mix(in srgb, currentColor 43%, #202320); stroke: currentColor; stroke-width: 2; }
+.side-armor { fill: color-mix(in srgb, currentColor 58%, #252823); stroke: color-mix(in srgb, currentColor 84%, #fff); stroke-width: 2.5; stroke-linejoin: round; }
+.side-armor-rib, .side-face { fill: none; stroke: color-mix(in srgb, currentColor 88%, #fff); stroke-width: 1.7; stroke-linecap: round; opacity: .72; }
+.side-pauldron { fill: color-mix(in srgb, currentColor 46%, #20221f); stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.side-core { fill: color-mix(in srgb, currentColor 35%, #fff); stroke: #f7f1df; stroke-width: 1.4; }
+.side-head { fill: #232623; stroke: color-mix(in srgb, currentColor 78%, #fff); stroke-width: 2.5; }
+.side-helmet { fill: color-mix(in srgb, currentColor 58%, #242724); stroke: color-mix(in srgb, currentColor 86%, #fff); stroke-width: 2.3; stroke-linejoin: round; }
+.side-crest { fill: currentColor; stroke: color-mix(in srgb, currentColor 78%, #fff); stroke-width: 1.8; stroke-linejoin: round; }
+.side-weapon-grip { fill: none; stroke: color-mix(in srgb, currentColor 26%, #3c2b20); stroke-width: 6; stroke-linecap: round; }
+.side-weapon-metal { fill: color-mix(in srgb, currentColor 68%, #e9e5da); stroke: color-mix(in srgb, currentColor 86%, #fff); stroke-width: 2.4; stroke-linejoin: round; }
+.side-weapon-metal.no-fill { fill: none; stroke-width: 3; stroke-linecap: round; }
+.side-weapon-core { fill: none; stroke: #fff0b0; stroke-width: 2; stroke-linecap: round; filter: drop-shadow(0 0 2px currentColor); }
+.side-shield { fill: color-mix(in srgb, currentColor 36%, #202320); stroke: color-mix(in srgb, currentColor 86%, #fff); stroke-width: 3; stroke-linejoin: round; }
+.side-shield.tower { stroke-width: 4; }
+.side-shield.thorn { stroke: currentColor; }
+.side-impact { fill: #fff0b0; stroke: currentColor; stroke-width: 2; opacity: 0; transform-origin: center; }
+.unit-figure.unit-1::before, .unit-figure.unit-2::before, .unit-figure.unit-3::before, .unit-figure.unit-4::before,
+.unit-figure.unit-3::after, .unit-figure.unit-4::after { display: none; }
+.unit-figure.unit-1 .side-cape, .unit-figure.unit-2 .side-cape { opacity: 0; }
+.unit-figure.unit-1 .side-pauldron { scale: .82; transform-origin: center; }
+.unit-figure.unit-2 .side-armor { filter: brightness(1.06); }
+.unit-figure.unit-3 .side-cape { opacity: .48; }
+.unit-figure.unit-3 .side-armor, .unit-figure.unit-3 .side-pauldron { stroke-width: 3; }
+.unit-figure.unit-4 .side-aura { opacity: .75; animation: side-aura-pulse 1.2s ease-in-out infinite alternate; }
+.unit-figure.unit-4 .side-cape { opacity: .9; }
+.unit-figure.unit-4 .side-armor, .unit-figure.unit-4 .side-pauldron { stroke-width: 3.5; }
+.unit-figure.unit-4 .side-unit-art { filter: drop-shadow(0 3px 2px rgba(0,0,0,.48)) drop-shadow(0 0 6px currentColor); }
+.unit-blue .side-armor { fill: color-mix(in srgb, currentColor 46%, #2a3440); }
+.unit-green .side-armor { fill: color-mix(in srgb, currentColor 46%, #293529); }
+.unit-green .side-weapon-metal.leaf { fill: color-mix(in srgb, currentColor 76%, #d9f0cf); }
+.unit-yellow .side-core, .unit-yellow .side-weapon-core { filter: drop-shadow(0 0 3px currentColor); }
+.unit-red .side-cape { fill: color-mix(in srgb, currentColor 38%, #261817); }
+
+.fighter.walking .side-character-root { animation: side-walk-root .62s linear infinite; }
+.fighter.walking .side-front-leg { animation: side-walk-front-leg .62s ease-in-out infinite; }
+.fighter.walking .side-back-leg { animation: side-walk-back-leg .62s ease-in-out infinite; }
+.fighter.walking .side-front-shin { animation: side-walk-front-shin .62s ease-in-out infinite; }
+.fighter.walking .side-back-shin { animation: side-walk-back-shin .62s ease-in-out infinite; }
+.fighter.walking .side-front-arm { animation: side-walk-front-arm .62s ease-in-out infinite; }
+.fighter.walking .side-back-arm { animation: side-walk-back-arm .62s ease-in-out infinite; }
+.fighter.walking .side-profile-head { animation: side-walk-head .62s ease-in-out infinite; }
+.fighter.walking .side-cape { animation: side-walk-cape .62s ease-in-out infinite; }
+.fighter.attacking.melee .side-character-root { animation: side-attack-root .52s cubic-bezier(.2,.72,.25,1) infinite; }
+.fighter.attacking.melee .side-front-arm { animation: side-attack-arm .52s cubic-bezier(.2,.72,.25,1) infinite; }
+.fighter.attacking.melee .side-weapon { animation: side-attack-weapon .52s cubic-bezier(.2,.72,.25,1) infinite; }
+.fighter.attacking.ranged .side-front-arm { animation: side-ranged-arm .6s ease-in-out infinite; }
+.fighter.attacking.ranged .side-weapon { animation: side-ranged-weapon .6s ease-in-out infinite; }
+.fighter.attacking .side-impact { animation: side-impact-flash .52s steps(1) infinite; }
+.fighter.hit .side-character-root { animation: side-art-hit .2s ease-out; }
+.fighter.commander-casting .side-character-root { animation: side-cast var(--commander-cast-duration, .85s) ease-out; }
+.fighter.commander-casting .side-aura { opacity: 1; animation: side-cast-aura var(--commander-cast-duration, .85s) ease-out; }
+@keyframes side-aura-pulse { to { scale: 1.17 .72; opacity: .38; } }
+@keyframes side-walk-root { 0%,100% { transform: translateY(0) rotate(-1deg); } 25%,75% { transform: translateY(2px) rotate(1deg); } 50% { transform: translateY(-2px) rotate(-1deg); } }
+@keyframes side-walk-front-leg { 0%,100% { rotate: -24deg; } 50% { rotate: 22deg; } }
+@keyframes side-walk-back-leg { 0%,100% { rotate: 23deg; } 50% { rotate: -23deg; } }
+@keyframes side-walk-front-shin { 0%,100% { rotate: 12deg; } 28% { rotate: -22deg; } 62% { rotate: 17deg; } }
+@keyframes side-walk-back-shin { 0%,100% { rotate: -20deg; } 35% { rotate: 18deg; } 72% { rotate: -25deg; } }
+@keyframes side-walk-front-arm { 0%,100% { rotate: 13deg; } 50% { rotate: -18deg; } }
+@keyframes side-walk-back-arm { 0%,100% { rotate: -17deg; } 50% { rotate: 20deg; } }
+@keyframes side-walk-head { 50% { translate: 0 -2px; rotate: -1deg; } }
+@keyframes side-walk-cape { 0%,100% { rotate: 7deg; skew: -5deg 0; } 50% { rotate: -5deg; skew: 4deg 0; } }
+@keyframes side-attack-root { 0%,100% { translate: 0 0; rotate: 0deg; } 22% { translate: -4px 1px; rotate: -5deg; } 48%,62% { translate: 6px -1px; rotate: 7deg; } }
+@keyframes side-attack-arm { 0%,100% { rotate: 0deg; } 22% { rotate: -49deg; } 48%,62% { rotate: 38deg; } }
+@keyframes side-attack-weapon { 0%,100% { rotate: 0deg; } 22% { rotate: -42deg; } 48%,62% { rotate: 54deg; } }
+@keyframes side-ranged-arm { 0%,100% { translate: 0 0; } 45% { translate: -3px 0; } 56% { translate: 2px 0; } }
+@keyframes side-ranged-weapon { 45% { translate: -3px 0; } 56% { translate: 2px 0; filter: brightness(1.7); } }
+@keyframes side-impact-flash { 0%,65%,100% { opacity: 0; } 66%,80% { opacity: 1; scale: 1.15; } }
+@keyframes side-art-hit { 35% { translate: -7px 0; rotate: -8deg; } 70% { translate: 3px 0; rotate: 3deg; } }
+@keyframes side-cast { 0%,100% { translate: 0 0; scale: 1; } 42% { translate: 0 -7px; scale: 1.1; filter: brightness(1.75); } }
+@keyframes side-cast-aura { 0% { scale: .5; opacity: 0; } 45% { scale: 1.35 .8; opacity: 1; } 100% { scale: 2.1 1.15; opacity: 0; } }
+
 .fighter.unit-green[style] { filter: drop-shadow(0 4px 2px rgba(0,0,0,.3)) drop-shadow(0 0 3px rgba(91,200,115,.32)); }
 .fighter.unit-yellow[style] { filter: drop-shadow(0 4px 2px rgba(0,0,0,.3)) drop-shadow(0 0 4px rgba(240,201,64,.35)); }
 
@@ -625,7 +761,7 @@ body.draw-open { overflow: hidden; }
 .codex-card.tier-4 { height: 152px; }
 .codex-figure { position: relative; overflow: hidden; border: 1px solid #45423e; border-radius: 3px; background: color-mix(in srgb, var(--faction-color) 9%, #1d1e1d); }
 .codex-figure .unit-figure { width: 44px; height: 76px; inset: 50% auto auto 50%; color: var(--faction-color); transform: translate(-50%,-50%) scale(var(--card-scale)); }
-.codex-figure .unit-figure.has-commander-art { transform: translate(-50%,-50%) scale(.88); }
+.codex-figure .unit-figure.has-commander-art { transform: translate(-50%,-50%) scale(var(--card-scale)); }
 .codex-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 .codex-tier { color: var(--tier-color); font-size: 8px; font-weight: 900; }
 .codex-info h3 { margin: 4px 0 3px; overflow: hidden; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
@@ -635,6 +771,56 @@ body.draw-open { overflow: hidden; }
 .commander-skill span { color: #aaa59b; font-size: 7px; line-height: 1.25; }
 .stat-line { display: flex; flex-wrap: wrap; gap: 3px 7px; margin-top: 6px; color: #c5c0b5; font-size: 7px; }
 .stat-line b { color: var(--faction-color); }
+
+.tournament-panel { margin-top: 9px; padding: 13px; }
+.tournament-panel[hidden] { display: none; }
+.tournament-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding-bottom: 10px; border-bottom: 1px solid #3f3d38; }
+.tournament-heading h2 { margin-top: 4px; font-size: 17px; }
+.tournament-heading p { color: var(--yellow); font-size: 9px; font-weight: 800; }
+.tournament-bracket { display: grid; grid-template-columns: 1fr 1fr 1.08fr; gap: 8px; margin-top: 10px; }
+.tournament-match { position: relative; min-width: 0; min-height: 72px; display: grid; align-content: center; gap: 6px; padding: 9px 11px; border: 1px solid #48453f; border-radius: 4px; background: #252524; }
+.tournament-match::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: #5e5a52; }
+.tournament-match.current { border-color: var(--yellow); box-shadow: inset 0 0 20px rgba(240,201,64,.06); }
+.tournament-match.current::before { background: var(--yellow); box-shadow: 0 0 9px var(--yellow); }
+.tournament-match.complete::before { background: var(--match-color, var(--green)); }
+.tournament-match > span { color: #8f8b82; font-size: 8px; font-weight: 900; }
+.tournament-match > strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-match > small { color: #aaa69f; font-size: 8px; }
+.tournament-match > small b { color: var(--match-color, var(--yellow)); }
+.tournament-standings { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; margin-top: 9px; }
+.tournament-standing { display: grid; grid-template-columns: auto minmax(62px,.72fr) minmax(0,1.28fr); align-items: center; gap: 7px; min-width: 0; padding: 7px 9px; border-top: 1px solid color-mix(in srgb, var(--standing-color) 55%, #3d3b36); border-bottom: 1px solid #393733; background: color-mix(in srgb, var(--standing-color) 5%, #222321); }
+.tournament-standing i { width: 7px; height: 7px; border-radius: 50%; background: var(--standing-color); box-shadow: 0 0 7px var(--standing-color); }
+.tournament-standing strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-standing span { color: #aaa69f; font-size: 8px; font-variant-numeric: tabular-nums; }
+.tournament-standing span b { color: var(--standing-color); }
+.tournament-standing span small { display: block; margin-top: 3px; color: #77736c; font-size: 7px; }
+.tournament-analysis { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.35fr); gap: 8px; margin-top: 10px; }
+.tournament-analysis > section { min-width: 0; padding-top: 8px; border-top: 1px solid #45423d; }
+.tournament-analysis h3, .tournament-history-heading h3 { color: #d8d3c8; font-size: 10px; }
+.tournament-matchups { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; margin-top: 7px; }
+.tournament-matchup-row { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; padding: 6px 8px; border-left: 2px solid #55514a; background: #242423; }
+.tournament-matchup-row > div { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.tournament-matchup-row > div i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--matchup-color); box-shadow: 0 0 6px var(--matchup-color); }
+.tournament-matchup-row > div strong { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-matchup-row > div span { color: #66635c; font-size: 7px; }
+.tournament-matchup-row > b { color: var(--yellow); font-size: 8px; font-variant-numeric: tabular-nums; }
+.tournament-matchup-row > small { grid-column: 1 / -1; overflow: hidden; color: #858179; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-match-history { max-height: 194px; display: grid; gap: 4px; margin-top: 7px; overflow-y: auto; }
+.tournament-match-detail { min-width: 0; display: grid; grid-template-columns: 82px minmax(0,1.2fr) minmax(0,1fr) auto; align-items: center; gap: 7px; min-height: 34px; padding: 5px 8px; border-left: 2px solid var(--winner-color,#55514a); background: #242423; }
+.tournament-match-detail > span { color: #858179; font-size: 7px; }
+.tournament-match-detail > strong { min-width: 0; display: flex; align-items: center; gap: 4px; overflow: hidden; font-size: 8px; white-space: nowrap; }
+.tournament-match-detail > strong i { padding: 1px 3px; border: 1px solid #55514a; color: #aaa69f; font-size: 6px; font-style: normal; }
+.tournament-match-detail > strong em { color: #66635c; font-size: 6px; font-style: normal; }
+.tournament-match-detail > small { overflow: hidden; color: #858179; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-match-detail > b { color: var(--winner-color,#d8d3c8); font-size: 8px; white-space: nowrap; }
+.tournament-match-detail.empty, .tournament-match-detail.legacy { grid-template-columns: 100px minmax(0,1fr) minmax(0,1fr) auto; }
+.tournament-history-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid #45423d; }
+.tournament-history-heading span { color: #77736c; font-size: 7px; }
+.tournament-history { display: grid; gap: 4px; margin: 9px 0 0; padding: 0; list-style: none; }
+.tournament-history li { display: grid; grid-template-columns: 70px minmax(0,1fr) auto; align-items: center; gap: 9px; min-height: 28px; padding: 5px 8px; border-left: 2px solid var(--history-color, #5c5952); background: #242423; color: #aaa69f; font-size: 8px; }
+.tournament-history li strong { color: var(--history-color, var(--paper)); font-size: 9px; }
+.tournament-history li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-history li b { color: #d9d4c8; font-size: 8px; }
 
 .result-modal { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(8,8,8,.76); backdrop-filter: blur(5px); }
 .result-modal[hidden] { display: none; }
@@ -669,7 +855,11 @@ body.draw-open { overflow: hidden; }
   .draw-result { min-height: 92px; }
   .draw-result strong { font-size: 12px; }
   .draw-result i { width: 30px; height: 30px; }
-  .draw-start { margin-top: 15px; }
+  .draw-actions { margin-top: 15px; }
+  .tournament-toggle { min-width: 0; }
+  .draw-start { min-width: 160px; }
+  .tournament-preview { grid-template-columns: 1fr; }
+  .tournament-preview > i { rotate: 90deg; }
   .game-shell { padding: 0; }
   .topbar { grid-template-columns: 1fr auto; border-radius: 0; }
   .match-score { grid-column: 1 / -1; grid-row: 2; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
@@ -678,7 +868,7 @@ body.draw-open { overflow: hidden; }
   .live-strip { grid-template-columns: 1fr auto; }
   .live-strip p { display: none; }
   .arena-grid { grid-template-columns: 1fr; grid-template-areas: "battle" "left-machine" "right-machine"; gap: 6px; margin-top: 6px; }
-  .machine-panel, .battle-panel, .codex-panel { border-radius: 0; border-left: 0; border-right: 0; }
+  .machine-panel, .battle-panel, .codex-panel, .tournament-panel { border-radius: 0; border-left: 0; border-right: 0; }
   .battle-status { gap: 6px; padding-inline: 8px; }
   .base-status { grid-template-columns: 1fr auto; gap: 5px; }
   .base-status .status-label { grid-column: 1 / -1; }
@@ -694,10 +884,20 @@ body.draw-open { overflow: hidden; }
   .codex-panel { margin-top: 6px; }
   .codex-heading p { display: none; }
   .codex-units { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tournament-bracket { grid-template-columns: 1fr; }
+  .tournament-standings { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .tournament-analysis { grid-template-columns: 1fr; }
+  .tournament-history li { grid-template-columns: 58px minmax(0,1fr); }
+  .tournament-history li b { grid-column: 2; }
 }
 
 @media (max-width: 430px) {
   .draw-screen { padding-inline: 6px; }
+  .draw-actions { display: grid; grid-template-columns: 1fr; }
+  .draw-actions > * { width: 100%; }
+  .tournament-standings, .tournament-matchups { grid-template-columns: 1fr; }
+  .tournament-match-detail, .tournament-match-detail.empty, .tournament-match-detail.legacy { grid-template-columns: 1fr auto; gap: 3px 7px; }
+  .tournament-match-detail > strong, .tournament-match-detail > small { grid-column: 1 / -1; }
   .draw-pool { gap: 3px; padding: 5px; }
   .faction-token { min-height: 156px; }
   .faction-token strong { font-size: 9px; }

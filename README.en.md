@@ -8,12 +8,14 @@ Stickman War is an automated spectator battle demo inspired by cybernetic cricke
 
 ## Current Gameplay
 
-- Four factions are available: Red Flame Army, Frost Blue Guard, Verdant Core Alliance, and Gilded Court. Each match draws two factions and assigns left/right positions.
+- Four factions are available: Red Flame Army, Frost Blue Guard, Verdant Core Alliance, and Gilded Court. Single-match mode draws two factions for left/right positions; Tournament mode creates two semifinal pairings.
 - Both machines fire one marble per second. Upper-stage results are settled from the real physical landing position, with current pool widths of `75% / 10% / 15%` for Troop, Split, and Boost.
+- At `05:00`, both upper cannons enter overdrive and increase their base output to two marbles per second. The rate resets to one marble per second for the next match.
 - Split turns one marble into two marbles that return around the machine frame to the upper cannon. Troop marbles travel through a visible pipe to the lower cannon at a constant speed.
 - The four lower unit pools use `4:3:2:1` width weights and cost `3 / 6 / 10 / 16` marbles to summon tiers I-IV.
-- Thirty Boost hits trigger the faction ultimate and reset the charge. When a fortress reaches `533 / 1600` HP, it releases one stronger emergency ability per match.
+- Thirty Boost hits trigger the faction ultimate and reset the charge. When a fortress reaches `533 / 1600` HP, it releases one substantially stronger emergency ability with a distinct catastrophe animation per match.
 - Units march, acquire targets, attack, and destroy the opposing fortress automatically. Spectator controls are pause, `×1/×2/×4` speed, mute, and restart.
+- The start screen has an optional Tournament switch: the four factions are randomly paired into two semifinals, winners advance automatically to the final, and the next edition starts after the champion is recorded. The three-match report, champion, faction wins/losses, and title counts persist in browser storage and continue accumulating.
 
 Marbles, conveyor obstacles, gravity, and rebounds are simulated with [Matter.js](https://brm.io/matter-js/). Marbles spawn from the actual cannon muzzle, sweep between `20°` and `80°`, and use randomized launch force. The final landing position drives both the visual result and the game counter.
 
@@ -26,13 +28,15 @@ Marbles, conveyor obstacles, gravity, and rebounds are simulated with [Matter.js
 | Verdant Core Alliance | Healing, retaliation, and sustain | Vineblade Scout, Spore Lobber, Thorn Warden, Ancient Tree Titan | Verdant Rebirth | Reclaiming Roots |
 | Gilded Court | Chain lightning and burst pressure | Arc Acolyte, Dawnbound Crossbow, Storm Vanguard, Solar Archon | Corona Overload | Stellar Flare |
 
-Every tier has a visibly larger silhouette, armor, weapon, aura, and particle treatment. The four commanders also have live combat skills: Flame Command, Frost Bastion, Verdant Revival, and Solar Verdict. These skills change unit health, shields, speed, control, damage, or fortress health in the battle state.
+The battlefield and unit codex share the same layered side-view SVG rig. Helmets, chest armor, pauldrons, limbs, feet, and weapons are solid independent parts that respond to walking, attacking, taking damage, and commander casting states. Every tier has a visibly larger silhouette, armor, weapon, aura, and particle treatment. The four commanders also have live combat skills: Flame Command, Frost Bastion, Verdant Revival, and Solar Verdict. These skills change unit health, shields, speed, control, damage, or fortress health in the battle state.
 
 Ranged units launch faction-specific arrows, spores, and prism bolts from their hand-held weapon mounts. Projectiles travel toward chest height and resolve damage on arrival.
 
-## Developer Test Tool
+## Tournament and Developer Test Tool
 
-Open the `T` button in the top bar to reveal direct summon controls for tiers I-IV on both sides. Test summons appear at the frontline without consuming marble pools. Tier-IV commanders become ready quickly, making it practical to test unit art, attacks, hits, projectiles, and commander skills without waiting for random production.
+The tournament report panel shows both semifinals, the final, and live advancement. Balance statistics track overall and left/right records for every faction plus all six head-to-head matchups. Each match stores the left and right factions, winner, ending fortress HP, unit deployments, and duration; edition history also preserves side assignment. A two-step reset command is available on the start screen. Turning Tournament off restores the original single-match draw flow.
+
+The test tool is fully hidden by default. Double-click the game title in the upper-left corner, or press `Alt+Shift+D`, to reveal the top-bar `T` button and open the test console. The console can choose both factions and start a match without the draw, and also supports direct tier I-IV summons, manual commander skills, charged ultimates, fortress emergency abilities, and one-click unit clearing. Test summons do not consume marble pools and start from their own fortress.
 
 ## Run Locally
 

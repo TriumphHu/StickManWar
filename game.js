@@ -88,8 +88,78 @@ const ULTIMATE_COST = 30;
 const MAX_BASE_HP = 1600;
 const FORTRESS_ULTIMATE_THRESHOLD = MAX_BASE_HP / 3;
 const MAX_MARBLE_SPEED = 10.5;
+const MARBLE_OVERDRIVE_TIME = 5 * 60;
+const TOURNAMENT_STORAGE_KEY = "stickman-war-tournament-v2";
 const { Engine, Bodies, Body, Composite } = Matter;
 let physicsStages = {};
+
+function emptyFactionTournamentStats(key) {
+  return {
+    wins: 0,
+    losses: 0,
+    titles: 0,
+    left: { played: 0, wins: 0 },
+    right: { played: 0, wins: 0 },
+    opponents: Object.fromEntries(Object.keys(FACTIONS).filter((opponent) => opponent !== key).map((opponent) => [opponent, {
+      wins: 0,
+      losses: 0,
+      leftPlayed: 0,
+      leftWins: 0,
+      rightPlayed: 0,
+      rightWins: 0
+    }]))
+  };
+}
+
+function emptyTournamentStats() {
+  return {
+    editions: 0,
+    factions: Object.fromEntries(Object.keys(FACTIONS).map((key) => [key, emptyFactionTournamentStats(key)])),
+    history: []
+  };
+}
+
+function loadTournamentStats() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TOURNAMENT_STORAGE_KEY));
+    const fallback = emptyTournamentStats();
+    if (!saved || typeof saved !== "object") return fallback;
+    Object.keys(FACTIONS).forEach((key) => {
+      const target = fallback.factions[key];
+      const source = saved.factions?.[key] || {};
+      target.wins = Number(source.wins) || 0;
+      target.losses = Number(source.losses) || 0;
+      target.titles = Number(source.titles) || 0;
+      ["left", "right"].forEach((side) => {
+        target[side].played = Number(source[side]?.played) || 0;
+        target[side].wins = Number(source[side]?.wins) || 0;
+      });
+      Object.keys(target.opponents).forEach((opponent) => {
+        Object.keys(target.opponents[opponent]).forEach((field) => {
+          target.opponents[opponent][field] = Number(source.opponents?.[opponent]?.[field]) || 0;
+        });
+      });
+    });
+    fallback.editions = Number(saved.editions) || 0;
+    fallback.history = Array.isArray(saved.history) ? saved.history.slice(0, 12) : [];
+    return fallback;
+  } catch {
+    return emptyTournamentStats();
+  }
+}
+
+const tournamentStats = loadTournamentStats();
+const tournament = {
+  active: false,
+  edition: tournamentStats.editions + 1,
+  stageIndex: 0,
+  bracket: null,
+  advanceTimer: null
+};
+
+function upperMarbleRate(elapsed) {
+  return elapsed >= MARBLE_OVERDRIVE_TIME ? 2 : 1;
+}
 
 const state = {
   playerHp: MAX_BASE_HP,
@@ -111,6 +181,7 @@ const state = {
   lastFrame: performance.now(),
   leftMarbleAccumulator: 0,
   rightMarbleAccumulator: 0,
+  marbleOverdriveTriggered: false,
   playerDefenseCooldown: 0,
   enemyDefenseCooldown: 0,
   playerFortressUltimateUsed: false,
@@ -151,6 +222,22 @@ const ui = {
   drawRightName: document.querySelector("#draw-right-name"),
   drawRightSigil: document.querySelector("#draw-right-sigil"),
   drawTokens: [...document.querySelectorAll("[data-draw-faction]")],
+  leftMarbleRate: document.querySelector("#left-marble-rate"),
+  rightMarbleRate: document.querySelector("#right-marble-rate"),
+  tournamentToggle: document.querySelector("#tournament-toggle"),
+  tournamentPreview: document.querySelector("#tournament-preview"),
+  tournamentPreviewStats: document.querySelector("#tournament-preview-stats"),
+  tournamentResetStats: document.querySelector("#tournament-reset-stats"),
+  tournamentPanel: document.querySelector("#tournament-panel"),
+  tournamentEdition: document.querySelector("#tournament-edition"),
+  tournamentCurrentStatus: document.querySelector("#tournament-current-status"),
+  tournamentBracket: document.querySelector("#tournament-bracket"),
+  tournamentStandings: document.querySelector("#tournament-standings"),
+  tournamentMatchups: document.querySelector("#tournament-matchups"),
+  tournamentMatchHistory: document.querySelector("#tournament-match-history"),
+  tournamentHistory: document.querySelector("#tournament-history"),
+  matchSeriesLabel: document.querySelector("#match-series-label"),
+  roundStatusLabel: document.querySelector("#round-status-label"),
   leftScoreName: document.querySelector("#left-score-name"),
   rightScoreName: document.querySelector("#right-score-name"),
   leftScoreDot: document.querySelector("#left-score-dot"),
@@ -217,71 +304,60 @@ const ui = {
   pause: document.querySelector("#pause-button"),
   speed: document.querySelector("#speed-button"),
   resultModal: document.querySelector("#result-modal"),
+  resultEyebrow: document.querySelector("#result-eyebrow"),
   resultTitle: document.querySelector("#result-title"),
   resultCopy: document.querySelector("#result-copy")
 };
 
-function commanderFigureMarkup(factionKey) {
-  const figures = {
-    red: `
-      <svg class="commander-art" viewBox="0 0 120 160" aria-hidden="true">
-        <ellipse class="commander-aura" cx="60" cy="145" rx="43" ry="9"></ellipse>
-        <path class="commander-cape" d="M46 57Q24 91 30 137L60 120L69 65Z"></path>
-        <path class="commander-limb leg-left" d="M51 91L43 126L34 145"></path><path class="commander-limb leg-right" d="M69 91L77 126L87 145"></path>
-        <path class="commander-limb arm-left" d="M49 67L31 86L25 105"></path><path class="commander-limb arm-right" d="M72 67L88 83L96 101"></path>
-        <path class="commander-armor" d="M43 52L60 42L79 53L74 95L46 95Z"></path>
-        <path class="commander-pauldron" d="M43 58L25 68L31 86L49 76ZM79 58L97 68L91 87L73 76Z"></path>
-        <circle class="commander-head" cx="60" cy="34" r="14"></circle><path class="commander-crown" d="M43 31L49 14L58 23L68 11L79 31Z"></path>
-        <path class="commander-face" d="M51 35L59 39L69 32"></path>
-        <g class="commander-weapon"><path class="weapon-handle" d="M94 101L102 144"></path><path class="weapon-blade" d="M93 105Q106 66 97 29Q113 57 108 93L101 109Z"></path></g>
-      </svg>`,
-    blue: `
-      <svg class="commander-art" viewBox="0 0 120 160" aria-hidden="true">
-        <ellipse class="commander-aura" cx="60" cy="145" rx="45" ry="9"></ellipse>
-        <path class="commander-back" d="M20 119L31 33L48 58L60 13L75 58L98 31L105 119Z"></path>
-        <path class="commander-limb leg-left" d="M52 92L45 126L36 146"></path><path class="commander-limb leg-right" d="M69 92L76 127L86 146"></path>
-        <path class="commander-limb arm-left" d="M48 68L29 85L23 106"></path><path class="commander-limb arm-right" d="M73 68L91 84L99 105"></path>
-        <path class="commander-armor" d="M40 52L60 41L82 53L77 99L44 99Z"></path>
-        <path class="commander-pauldron" d="M40 58L19 70L26 91L47 77ZM83 58L103 70L96 92L76 77Z"></path>
-        <circle class="commander-head" cx="60" cy="33" r="16"></circle><path class="commander-crown" d="M40 32L48 9L59 21L71 7L81 32L71 25L60 32L49 24Z"></path>
-        <path class="commander-face" d="M49 35H72"></path>
-        <g class="commander-weapon shield"><path class="weapon-handle" d="M25 87L31 138"></path><path class="weapon-blade" d="M15 51L34 43L47 62L36 108L16 98L22 76Z"></path><path class="weapon-detail" d="M20 60L37 51M18 78L39 66M17 95L36 83"></path></g>
-      </svg>`,
-    green: `
-      <svg class="commander-art" viewBox="0 0 120 160" aria-hidden="true">
-        <ellipse class="commander-aura" cx="60" cy="145" rx="46" ry="9"></ellipse>
-        <path class="commander-back" d="M15 119Q38 103 29 70Q50 87 60 18Q72 87 96 67Q86 105 108 119"></path>
-        <path class="commander-limb leg-left" d="M51 94L44 127L31 147"></path><path class="commander-limb leg-right" d="M70 94L77 127L91 147"></path>
-        <path class="commander-limb arm-left" d="M47 69L26 85L17 106"></path><path class="commander-limb arm-right" d="M74 69L94 85L104 106"></path>
-        <path class="commander-armor" d="M39 52L59 40L82 53L78 101L43 101Z"></path>
-        <path class="commander-pauldron" d="M40 58L19 67L25 92L47 77ZM82 58L103 67L98 92L76 77Z"></path>
-        <circle class="commander-head" cx="60" cy="32" r="16"></circle><path class="commander-crown" d="M43 30Q38 13 50 18Q54 2 61 20Q72 3 71 21Q86 12 77 33Z"></path>
-        <path class="commander-face" d="M49 34L59 39L71 31"></path>
-        <g class="commander-weapon"><path class="weapon-handle" d="M101 60L94 145"></path><path class="weapon-blade" d="M101 49Q114 51 111 65Q100 74 89 63Q90 51 101 49ZM101 49Q95 33 107 26Q112 39 105 51M108 55Q119 45 118 60Q113 68 107 64"></path></g>
-      </svg>`,
-    yellow: `
-      <svg class="commander-art" viewBox="0 0 120 160" aria-hidden="true">
-        <ellipse class="commander-aura" cx="60" cy="145" rx="44" ry="9"></ellipse><circle class="commander-halo" cx="60" cy="31" r="25"></circle>
-        <path class="commander-cape" d="M47 55Q30 87 31 137L60 120L72 61Z"></path>
-        <path class="commander-limb leg-left" d="M52 91L44 126L36 146"></path><path class="commander-limb leg-right" d="M69 91L77 126L86 146"></path>
-        <path class="commander-limb arm-left" d="M49 67L31 85L25 105"></path><path class="commander-limb arm-right" d="M72 67L90 84L97 104"></path>
-        <path class="commander-armor" d="M43 51L60 40L80 52L75 97L46 97Z"></path>
-        <path class="commander-pauldron" d="M43 58L25 69L31 88L49 77ZM80 58L98 68L92 89L74 77Z"></path>
-        <circle class="commander-head" cx="60" cy="32" r="14"></circle><path class="commander-crown" d="M43 30L47 14L57 21L61 7L68 21L78 13L80 31L69 24L60 30L50 24Z"></path>
-        <path class="commander-face" d="M50 34H71"></path>
-        <g class="commander-weapon"><path class="weapon-handle" d="M101 42L101 146"></path><path class="weapon-blade" d="M101 20L114 39L101 57L88 39ZM86 68L101 58L116 68L101 77Z"></path><path class="weapon-detail" d="M101 23V55M91 39H111"></path></g>
-      </svg>`
-  };
-  return figures[factionKey];
-}
-
 function unitFigureMarkup(factionKey = "", tier = -1) {
-  if (tier === 3) return commanderFigureMarkup(factionKey);
+  const crests = {
+    red: ["M36 35Q20 24 8 35Q22 42 37 42Z", "M35 35L22 16L42 28L55 17L50 43Z", "M35 36L17 22L25 8L39 24L50 5L56 37Z", "M33 38L13 18L28 20L37 3L47 22L61 10L56 41Z"],
+    blue: ["M30 39Q34 18 53 19Q62 26 61 43Z", "M29 39Q28 14 48 12Q66 17 64 43L52 34L43 45Z", "M32 40L18 12L39 26L50 7L59 28L72 13L62 43Z", "M30 41L10 8L39 25L50 1L61 25L85 7L66 43Z"],
+    green: ["M34 39Q17 32 15 17Q31 18 41 34Q43 16 59 13Q58 32 49 42Z", "M31 40Q14 25 18 10Q35 17 42 32Q50 11 66 13Q62 31 50 43Z", "M30 41Q11 31 11 13Q31 14 41 31Q47 5 66 8Q66 29 52 43Z", "M29 42Q4 34 8 10Q31 15 40 29Q47 0 70 6Q69 30 52 44Z"],
+    yellow: ["M31 38L24 20L37 27L46 12L53 28L66 19L61 41Z", "M29 39L18 15L37 26L47 7L57 27L72 14L64 42Z", "M28 40L14 12L36 25L47 3L59 25L77 10L66 43Z", "M27 41L10 8L35 24L47 0L61 24L82 7L68 44Z"]
+  };
+  const weapons = {
+    red: [
+      `<path class="side-weapon-grip" d="M83 88L105 127"></path><path class="side-weapon-metal" d="M82 88Q91 62 83 46Q108 65 103 93L93 102Z"></path>`,
+      `<path class="side-weapon-grip" d="M84 91L111 139"></path><path class="side-weapon-metal" d="M79 82L114 21L111 51L89 94Z"></path>`,
+      `<path class="side-weapon-grip" d="M84 90L109 143"></path><path class="side-weapon-metal" d="M88 72Q104 50 119 59L110 89L91 94ZM88 72Q78 55 68 65L78 91L91 94Z"></path>`,
+      `<path class="side-weapon-grip" d="M83 91L109 148"></path><path class="side-weapon-metal" d="M84 87Q101 37 91 10Q121 42 112 88L98 105Z"></path><path class="side-weapon-core" d="M94 80Q103 54 100 35"></path>`
+    ],
+    blue: [
+      `<path class="side-weapon-grip" d="M82 88L105 126"></path><path class="side-weapon-metal" d="M82 88L105 65L111 75L91 99Z"></path><path class="side-shield" d="M21 77Q37 66 47 80L43 119Q25 119 17 101Z"></path>`,
+      `<path class="side-weapon-metal no-fill" d="M78 84Q109 49 111 101Q106 123 83 96M79 84L110 102M96 62L96 112"></path><path class="side-weapon-core" d="M79 84L116 87"></path>`,
+      `<path class="side-weapon-grip" d="M84 89L106 139"></path><path class="side-weapon-metal" d="M94 59L115 51L123 70L110 91L91 83Z"></path><path class="side-shield tower" d="M17 61Q38 51 49 69L44 128Q25 131 14 111Z"></path>`,
+      `<path class="side-weapon-grip" d="M85 88L108 147"></path><path class="side-weapon-metal" d="M91 45L114 35L127 52L117 75L93 72L82 58Z"></path><path class="side-weapon-core" d="M97 48L114 61M115 44L96 67"></path>`
+    ],
+    green: [
+      `<path class="side-weapon-grip" d="M82 89L105 126"></path><path class="side-weapon-metal leaf" d="M80 86Q83 58 107 52Q108 76 91 94Z"></path>`,
+      `<path class="side-weapon-metal launcher" d="M77 78Q99 62 117 78L110 98Q92 101 78 91Z"></path><path class="side-weapon-core" d="M105 79L122 85"></path>`,
+      `<path class="side-weapon-grip" d="M84 89L106 142"></path><path class="side-weapon-metal" d="M91 55Q111 44 121 61Q115 82 94 82Q79 69 91 55Z"></path><path class="side-shield thorn" d="M15 68L25 58L34 65L46 58L51 75L45 118L29 128L15 112Z"></path>`,
+      `<path class="side-weapon-grip" d="M84 89L104 148"></path><path class="side-weapon-metal" d="M88 46Q107 25 124 45L116 75Q97 85 82 66Z"></path><path class="side-weapon-core" d="M95 49L111 42M104 46L108 67"></path>`
+    ],
+    yellow: [
+      `<path class="side-weapon-grip" d="M82 88L105 127"></path><path class="side-weapon-metal" d="M81 86L103 61L116 73L92 101Z"></path><path class="side-weapon-core" d="M98 70L107 80"></path>`,
+      `<path class="side-weapon-metal no-fill" d="M78 78L113 71L116 101L80 96ZM96 74V99M77 87H121"></path><path class="side-weapon-core" d="M77 87L124 87"></path>`,
+      `<path class="side-weapon-grip" d="M83 90L110 145"></path><path class="side-weapon-metal" d="M84 82L109 30L118 39L94 94Z"></path><path class="side-weapon-core" d="M105 44L116 53"></path>`,
+      `<path class="side-weapon-grip" d="M84 89L107 149"></path><path class="side-weapon-metal" d="M102 20L117 42L103 61L89 41ZM87 70L103 61L119 72L104 84Z"></path><path class="side-weapon-core" d="M103 24V58M94 42H112"></path>`
+    ]
+  };
+  const safeFaction = crests[factionKey] ? factionKey : "red";
+  const safeTier = Math.max(0, Math.min(3, tier));
   return `
-    <span class="head"></span><span class="body"></span>
-    <i class="arm left"></i><i class="arm right"></i>
-    <i class="leg left"></i><i class="leg right"></i>
-    <b class="weapon"></b><b class="gear"></b><b class="crest"></b><em class="impact"></em>
+    <svg class="side-unit-art" viewBox="0 0 130 160" aria-hidden="true">
+      <ellipse class="side-aura" cx="54" cy="150" rx="43" ry="7"></ellipse>
+      <g class="side-character-root">
+        <path class="side-cape" d="M39 59Q17 85 22 132L51 116L67 67Z"></path>
+        <g class="side-limb side-back-leg"><path class="side-thigh" d="M48 94L34 121"></path><circle class="side-joint" cx="34" cy="121" r="6"></circle><g class="side-back-shin"><path class="side-shin" d="M34 121L25 146"></path><path class="side-foot" d="M19 141Q32 140 38 147L36 153H17Z"></path></g></g>
+        <g class="side-limb side-back-arm"><path class="side-arm-line" d="M42 63L27 84L20 105"></path><circle class="side-joint" cx="27" cy="84" r="5"></circle><path class="side-gauntlet" d="M14 100L25 98L28 110L17 114Z"></path></g>
+        <g class="side-torso"><path class="side-waist" d="M39 91H68L65 102H42Z"></path><path class="side-armor" d="M37 54L53 43L72 57L67 96L40 96Z"></path><path class="side-armor-rib" d="M52 51L53 91M41 73H68"></path><path class="side-pauldron" d="M39 57L24 67L30 82L45 70ZM70 58L84 68L79 82L65 71Z"></path><circle class="side-core" cx="54" cy="72" r="5"></circle></g>
+        <g class="side-limb side-front-leg"><path class="side-thigh" d="M62 96L75 121"></path><circle class="side-joint" cx="75" cy="121" r="7"></circle><g class="side-front-shin"><path class="side-shin" d="M75 121L84 145"></path><path class="side-foot" d="M79 141Q92 140 101 147L98 153H79Z"></path></g></g>
+        <g class="side-profile-head"><path class="side-head" d="M37 35Q38 15 54 13Q70 14 74 31L82 37L74 43Q72 54 58 57Q43 56 38 46Z"></path><path class="side-helmet" d="M36 37Q37 12 55 10Q75 13 75 33L67 29L61 42L52 34L43 43Z"></path><path class="side-crest" d="${crests[safeFaction][safeTier]}"></path><path class="side-face" d="M65 36L73 35M65 46L74 42"></path></g>
+        <g class="side-limb side-front-arm"><path class="side-arm-line" d="M70 62L82 78L87 91"></path><circle class="side-joint" cx="82" cy="78" r="6"></circle><path class="side-gauntlet" d="M80 87L91 84L97 96L86 101Z"></path><g class="side-weapon">${weapons[safeFaction][safeTier]}</g></g>
+      </g>
+      <path class="side-impact" d="M111 70L116 80L128 76L121 88L130 97L117 98L114 111L106 101L94 108L99 95L89 87L103 85Z"></path>
+    </svg>
   `;
 }
 
@@ -359,11 +435,28 @@ function configureMatchUI(leftKey, rightKey) {
   document.querySelector(".enemy-defense-range").style.setProperty("--range-color", FACTIONS[rightKey].color);
   document.querySelector("#dev-left-label").textContent = `${FACTIONS[leftKey].name} · 左侧`;
   document.querySelector("#dev-right-label").textContent = `${FACTIONS[rightKey].name} · 右侧`;
+  document.querySelector("#dev-left-faction").value = leftKey;
+  document.querySelector("#dev-right-faction").value = rightKey;
   document.querySelectorAll("[data-dev-tier]").forEach((button) => {
     const factionKey = button.dataset.devSide === "left" ? leftKey : rightKey;
     const tier = Number(button.dataset.devTier);
     button.title = `测试召唤 ${FACTIONS[factionKey].units[tier].name}`;
     button.setAttribute("aria-label", button.title);
+  });
+  document.querySelectorAll('[data-dev-action="commander"][data-dev-side]').forEach((button) => {
+    const factionKey = button.dataset.devSide === "left" ? leftKey : rightKey;
+    button.textContent = `统领 · ${FACTIONS[factionKey].commanderSkill.name}`;
+    button.title = `手动释放 ${FACTIONS[factionKey].commanderSkill.name}`;
+  });
+  document.querySelectorAll('[data-dev-action="ultimate"][data-dev-side]').forEach((button) => {
+    const factionKey = button.dataset.devSide === "left" ? leftKey : rightKey;
+    button.textContent = `强化 · ${FACTIONS[factionKey].ultimate}`;
+    button.title = `手动释放 ${FACTIONS[factionKey].ultimate}`;
+  });
+  document.querySelectorAll('[data-dev-action="fortress"][data-dev-side]').forEach((button) => {
+    const factionKey = button.dataset.devSide === "left" ? leftKey : rightKey;
+    button.textContent = `要塞 · ${FACTIONS[factionKey].fortressUltimate}`;
+    button.title = `手动释放 ${FACTIONS[factionKey].fortressUltimate}`;
   });
   renderCodex();
 }
@@ -379,7 +472,7 @@ function renderCodex() {
         <div class="codex-side-heading"><span class="codex-side-label">${label}</span><strong>${faction.name}</strong><span class="codex-side-trait">${faction.trait}</span></div>
         <div class="codex-units">
           ${faction.units.map((unit, tier) => `
-            <article class="codex-card tier-${tier + 1}" style="--faction-color:${faction.color};--card-scale:${[.76, .96, 1.22, 1.52][tier]}">
+            <article class="codex-card tier-${tier + 1}" style="--faction-color:${faction.color};--card-scale:${[.68, .84, 1.02, 1.16][tier]}">
               <div class="codex-figure" aria-hidden="true"><div class="unit-figure unit-${key} unit-${tier + 1} ${tier === 3 ? "has-commander-art" : ""}">${unitFigureMarkup(key, tier)}</div></div>
               <div class="codex-info">
                 <span class="codex-tier">等级 ${TIER_LABELS[tier]} · ${unit.role}</span>
@@ -707,8 +800,9 @@ function castUltimate(side, source = "charge") {
   if (!isFortressUltimate) state[boostKey] = 0;
   const effectElement = document.createElement("div");
   const effectClass = { red: "meteor-storm", blue: "frost-wave", green: "growth-surge", yellow: "solar-overload" }[factionKey];
-  effectElement.className = `ultimate-effect ${effectClass} side-${side} ${isFortressUltimate ? "fortress-ultimate" : ""}`;
+  effectElement.className = `ultimate-effect ${effectClass} side-${side} ${isFortressUltimate ? `fortress-ultimate fortress-${factionKey}` : ""}`;
   effectElement.style.setProperty("--fortress-color", faction.color);
+  if (isFortressUltimate) effectElement.dataset.fortressName = faction.fortressUltimate;
   const visualSpeed = state.speed;
   const visualTimes = {
     "--shake-duration": .18, "--shake-delay": .2, "--meteor-duration": .48,
@@ -718,7 +812,7 @@ function castUltimate(side, source = "charge") {
     "--fortress-duration": isFortressUltimate ? 5.8 : 2.8
   };
   Object.entries(visualTimes).forEach(([name, seconds]) => effectElement.style.setProperty(name, `${seconds / visualSpeed}s`));
-  const leftCenters = isFortressUltimate ? [38, 48, 58, 69, 80, 90] : [48, 62, 76, 88];
+  const leftCenters = isFortressUltimate ? [32, 40, 48, 58, 68, 78, 88, 94] : [48, 62, 76, 88];
   const strikeCenters = side === "left" ? leftCenters : leftCenters.map((center) => 100 - center);
   const strikeInterval = isFortressUltimate ? .22 : .32;
   if (factionKey === "red") effectElement.innerHTML = `${strikeCenters.map((center, index) => `<i style="--strike-x:${center}%;--delay:${index * strikeInterval / visualSpeed}s"></i>`).join("")}<b></b>`;
@@ -735,53 +829,53 @@ function castUltimate(side, source = "charge") {
       age: 0,
       nextStrike: 0,
       burnTick: 0,
-      duration: isFortressUltimate ? 6.8 : 4.8,
+      duration: isFortressUltimate ? 7.8 : 4.8,
       strikeCenters,
       strikeTimes: strikeCenters.map((_, index) => .25 + index * (isFortressUltimate ? .28 : .37)),
       burnStart: isFortressUltimate ? 1.65 : 1.35,
-      burnEnd: isFortressUltimate ? 6.35 : 4.35,
-      burnDamage: isFortressUltimate ? 20 : 12,
-      baseDamage: isFortressUltimate ? 240 : 120,
+      burnEnd: isFortressUltimate ? 7.35 : 4.35,
+      burnDamage: isFortressUltimate ? 26 : 12,
+      baseDamage: isFortressUltimate ? 320 : 120,
       empowered: isFortressUltimate,
       element: effectElement
     });
   } else if (factionKey === "blue") {
-    const unitDamageRatio = isFortressUltimate ? .25 : .14;
-    const minimumUnitDamage = isFortressUltimate ? 70 : 38;
-    const freezeDuration = isFortressUltimate ? 4.2 : 2.6;
-    const shieldDuration = isFortressUltimate ? 7 : 4.5;
+    const unitDamageRatio = isFortressUltimate ? .32 : .14;
+    const minimumUnitDamage = isFortressUltimate ? 95 : 38;
+    const freezeDuration = isFortressUltimate ? 5.5 : 2.6;
+    const shieldDuration = isFortressUltimate ? 9 : 4.5;
     state.units.filter((unit) => unit.team === enemyTeam).forEach((unit) => {
       applyDamage(unit, Math.max(minimumUnitDamage, unit.maxHp * unitDamageRatio));
       unit.freezeTimer = Math.max(unit.freezeTimer, freezeDuration);
     });
     state.units.filter((unit) => unit.team === ownTeam).forEach((unit) => {
       unit.shieldTimer = Math.max(unit.shieldTimer, shieldDuration);
-      unit.shieldHp = Math.max(unit.shieldHp, isFortressUltimate ? 150 + unit.tier * 45 : 60 + unit.tier * 25);
+      unit.shieldHp = Math.max(unit.shieldHp, isFortressUltimate ? 230 + unit.tier * 60 : 60 + unit.tier * 25);
     });
-    state[enemyHpKey(side)] = Math.max(0, state[enemyHpKey(side)] - (isFortressUltimate ? 160 : 70));
-    state.ultimateEffects.push({ type: "blue", side, age: 0, duration: isFortressUltimate ? 4.2 : 2.8, element: effectElement });
+    state[enemyHpKey(side)] = Math.max(0, state[enemyHpKey(side)] - (isFortressUltimate ? 230 : 70));
+    state.ultimateEffects.push({ type: "blue", side, age: 0, duration: isFortressUltimate ? 5.5 : 2.8, element: effectElement });
   } else if (factionKey === "green") {
-    const rootDuration = isFortressUltimate ? 4.2 : 2.5;
+    const rootDuration = isFortressUltimate ? 5.8 : 2.5;
     state.units.filter((unit) => unit.team === enemyTeam).forEach((unit) => {
       unit.freezeTimer = Math.max(unit.freezeTimer, rootDuration);
-      applyDamage(unit, isFortressUltimate ? Math.max(58, unit.maxHp * .16) : Math.max(24, unit.maxHp * .08));
+      applyDamage(unit, isFortressUltimate ? Math.max(85, unit.maxHp * .24) : Math.max(24, unit.maxHp * .08));
     });
     state.units.filter((unit) => unit.team === ownTeam).forEach((unit) => {
-      unit.shieldTimer = Math.max(unit.shieldTimer, isFortressUltimate ? 8 : 5);
-      unit.shieldHp = Math.max(unit.shieldHp, isFortressUltimate ? 190 + unit.tier * 42 : 80 + unit.tier * 24);
+      unit.shieldTimer = Math.max(unit.shieldTimer, isFortressUltimate ? 10 : 5);
+      unit.shieldHp = Math.max(unit.shieldHp, isFortressUltimate ? 270 + unit.tier * 65 : 80 + unit.tier * 24);
     });
-    state.ultimateEffects.push({ type: "green", side, ownTeam, age: 0, healTick: 0, duration: isFortressUltimate ? 7 : 4.5, heal: isFortressUltimate ? 28 : 16, baseHeal: isFortressUltimate ? 24 : 12, element: effectElement });
+    state.ultimateEffects.push({ type: "green", side, ownTeam, age: 0, healTick: 0, duration: isFortressUltimate ? 9 : 4.5, heal: isFortressUltimate ? 38 : 16, baseHeal: isFortressUltimate ? 36 : 12, element: effectElement });
   } else {
     const enemies = state.units.filter((unit) => unit.team === enemyTeam).sort((a, b) => side === "left" ? a.x - b.x : b.x - a.x);
-    const hops = isFortressUltimate ? 7 : 4;
-    enemies.slice(0, hops).forEach((unit, index) => applyDamage(unit, (isFortressUltimate ? 90 : 58) * Math.pow(.82, index)));
-    state.units.filter((unit) => unit.team === ownTeam).forEach((unit) => { unit.hasteTimer = Math.max(unit.hasteTimer, isFortressUltimate ? 7 : 4); });
-    state[enemyHpKey(side)] = Math.max(0, state[enemyHpKey(side)] - (isFortressUltimate ? 190 : 85));
-    const extraMarbles = isFortressUltimate ? 7 : 4;
+    const hops = isFortressUltimate ? 9 : 4;
+    enemies.slice(0, hops).forEach((unit, index) => applyDamage(unit, (isFortressUltimate ? 118 : 58) * Math.pow(.82, index)));
+    state.units.filter((unit) => unit.team === ownTeam).forEach((unit) => { unit.hasteTimer = Math.max(unit.hasteTimer, isFortressUltimate ? 9 : 4); });
+    state[enemyHpKey(side)] = Math.max(0, state[enemyHpKey(side)] - (isFortressUltimate ? 270 : 85));
+    const extraMarbles = isFortressUltimate ? 10 : 4;
     for (let index = 0; index < extraMarbles; index += 1) setTimeout(() => {
       if (state.started && !state.ended) createTransferShot(side);
     }, index * 150 / state.speed);
-    state.ultimateEffects.push({ type: "yellow", side, age: 0, duration: isFortressUltimate ? 4.5 : 2.8, element: effectElement });
+    state.ultimateEffects.push({ type: "yellow", side, age: 0, duration: isFortressUltimate ? 5.8 : 2.8, element: effectElement });
   }
   showCallout(`${faction.name}${isFortressUltimate ? "要塞危急技" : "终极技能"} · ${isFortressUltimate ? faction.fortressUltimate : faction.ultimate}`);
   log(`${faction.name}释放${isFortressUltimate ? faction.fortressUltimate : faction.ultimate}，战局效果已生效。`);
@@ -808,10 +902,10 @@ function updateUltimateEffects(dt) {
       const isFinalStrike = index === effect.strikeTimes.length - 1;
       state.units.filter((unit) => unit.team === effect.enemyTeam && Math.abs(unit.x - center) <= 15).forEach((unit) => {
         const damage = effect.empowered
-          ? (isFinalStrike ? Math.max(120, unit.maxHp * .3) : Math.max(68, unit.maxHp * .18))
+          ? (isFinalStrike ? Math.max(165, unit.maxHp * .42) : Math.max(92, unit.maxHp * .25))
           : (isFinalStrike ? Math.max(75, unit.maxHp * .2) : Math.max(48, unit.maxHp * .12));
         applyDamage(unit, damage);
-        const push = isFinalStrike ? (effect.empowered ? 10 : 7) : (effect.empowered ? 6 : 4);
+        const push = isFinalStrike ? (effect.empowered ? 14 : 7) : (effect.empowered ? 8 : 4);
         unit.x = effect.side === "left" ? Math.min(91, unit.x + push) : Math.max(9, unit.x - push);
       });
       if (isFinalStrike) state[enemyHpKey(effect.side)] = Math.max(0, state[enemyHpKey(effect.side)] - effect.baseDamage);
@@ -1310,6 +1404,9 @@ function updateHud() {
   ui.enemyFortressThreshold.classList.toggle("used", state.enemyFortressUltimateUsed);
   const seconds = Math.floor(state.elapsed);
   ui.battleTime.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  const marbleRate = upperMarbleRate(state.elapsed);
+  ui.leftMarbleRate.textContent = `${marbleRate} 珠 / 秒`;
+  ui.rightMarbleRate.textContent = `${marbleRate} 珠 / 秒`;
 }
 
 function log(message) { ui.battleLog.textContent = message; }
@@ -1334,6 +1431,257 @@ function showCallout(message) {
   setTimeout(() => ui.callout.classList.add("hide"), 2300);
 }
 
+const TOURNAMENT_STAGE_LABELS = ["半决赛 A", "半决赛 B", "总决赛"];
+
+function persistTournamentStats() {
+  try {
+    localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(tournamentStats));
+  } catch {}
+}
+
+function shuffledFactionKeys() {
+  const keys = Object.keys(FACTIONS);
+  for (let index = keys.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [keys[index], keys[target]] = [keys[target], keys[index]];
+  }
+  return keys;
+}
+
+function tournamentPair(stageIndex = tournament.stageIndex) {
+  if (!tournament.bracket) return [];
+  return stageIndex < 2 ? tournament.bracket.semifinals[stageIndex] : tournament.bracket.finalists;
+}
+
+function tournamentResult(stageIndex) {
+  return tournament.bracket?.results.find((result) => result.stageIndex === stageIndex);
+}
+
+function factionMatchup(pair) {
+  if (!pair || pair.length < 2) return "待定 VS 待定";
+  return `${FACTIONS[pair[0]].name} VS ${FACTIONS[pair[1]].name}`;
+}
+
+function recentTournamentMatches() {
+  const matches = [];
+  if (tournament.bracket && !tournament.bracket.champion) {
+    tournament.bracket.results.slice().reverse().forEach((match) => matches.push({ edition: tournament.edition, ...match }));
+  }
+  tournamentStats.history.forEach((edition) => {
+    (edition.matches || []).slice().reverse().forEach((match) => matches.push({ edition: edition.edition, ...match }));
+  });
+  return matches.slice(0, 12);
+}
+
+function renderTournamentUI() {
+  const completedText = tournamentStats.editions
+    ? `累计 ${tournamentStats.editions} 届 · ${Object.entries(tournamentStats.factions).filter(([, stats]) => stats.titles > 0).map(([key, stats]) => `${FACTIONS[key].shortName} ${stats.titles} 冠`).join(" · ")}`
+    : "尚未产生锦标赛冠军";
+  ui.tournamentPreviewStats.textContent = completedText;
+  ui.tournamentResetStats.hidden = !tournamentStats.editions && !Object.values(tournamentStats.factions).some((stats) => stats.wins || stats.losses);
+  ui.tournamentPreview.hidden = !ui.tournamentToggle.checked;
+  ui.tournamentPanel.hidden = !tournament.active;
+  ui.tournamentEdition.textContent = `第 ${tournament.edition} 届`;
+
+  if (tournament.bracket) {
+    const currentPair = tournamentPair();
+    const champion = tournament.bracket.champion;
+    ui.tournamentCurrentStatus.textContent = champion
+      ? `${FACTIONS[champion].name}获得总冠军`
+      : `${TOURNAMENT_STAGE_LABELS[tournament.stageIndex]} · ${factionMatchup(currentPair)}`;
+    ui.tournamentBracket.innerHTML = TOURNAMENT_STAGE_LABELS.map((label, stageIndex) => {
+      const pair = tournamentPair(stageIndex);
+      const result = tournamentResult(stageIndex);
+      const classes = ["tournament-match"];
+      if (stageIndex === tournament.stageIndex && !champion) classes.push("current");
+      if (result) classes.push("complete");
+      const winner = result ? FACTIONS[result.winner] : null;
+      return `
+        <article class="${classes.join(" ")}" style="--match-color:${winner?.color || "#5e5a52"}">
+          <span>${label}</span>
+          <strong>${factionMatchup(pair)}</strong>
+          <small>${result ? `胜者 <b>${winner.name}</b> · ${result.duration}` : stageIndex === tournament.stageIndex ? "正在进行" : "等待晋级结果"}</small>
+        </article>`;
+    }).join("");
+  } else {
+    ui.tournamentCurrentStatus.textContent = "等待半决赛签位";
+    ui.tournamentBracket.innerHTML = TOURNAMENT_STAGE_LABELS.map((label) => `
+      <article class="tournament-match"><span>${label}</span><strong>待抽签</strong><small>等待晋级结果</small></article>`).join("");
+  }
+
+  ui.tournamentStandings.innerHTML = Object.entries(FACTIONS).map(([key, faction]) => {
+    const stats = tournamentStats.factions[key];
+    const leftLosses = stats.left.played - stats.left.wins;
+    const rightLosses = stats.right.played - stats.right.wins;
+    return `<div class="tournament-standing" style="--standing-color:${faction.color}"><i></i><strong>${faction.name}</strong><span><b>${stats.titles}</b> 冠 · 总 ${stats.wins}胜 ${stats.losses}负<small>左 ${stats.left.wins}胜 ${leftLosses}负 · 右 ${stats.right.wins}胜 ${rightLosses}负</small></span></div>`;
+  }).join("");
+
+  const factionKeys = Object.keys(FACTIONS);
+  const matchups = [];
+  factionKeys.forEach((leftKey, leftIndex) => {
+    factionKeys.slice(leftIndex + 1).forEach((rightKey) => matchups.push([leftKey, rightKey]));
+  });
+  ui.tournamentMatchups.innerHTML = matchups.map(([firstKey, secondKey]) => {
+    const first = FACTIONS[firstKey];
+    const second = FACTIONS[secondKey];
+    const record = tournamentStats.factions[firstKey].opponents[secondKey];
+    const played = record.wins + record.losses;
+    return `<article class="tournament-matchup-row">
+      <div><i style="--matchup-color:${first.color}"></i><strong>${first.shortName}</strong><span>VS</span><strong>${second.shortName}</strong><i style="--matchup-color:${second.color}"></i></div>
+      <b>${played ? `${record.wins} - ${record.losses}` : "暂无交锋"}</b>
+      <small>${played ? `共 ${played} 场 · ${first.shortName}在左 ${record.leftPlayed} 场 · ${second.shortName}在左 ${record.rightPlayed} 场` : "等待正式锦标赛对局"}</small>
+    </article>`;
+  }).join("");
+
+  const detailedMatches = recentTournamentMatches();
+  ui.tournamentMatchHistory.innerHTML = detailedMatches.length
+    ? detailedMatches.map((match) => {
+      const stage = TOURNAMENT_STAGE_LABELS[match.stageIndex] || "历史对局";
+      if (!match.left || !match.right) {
+        return `<article class="tournament-match-detail legacy"><span>第 ${match.edition} 届 · ${stage}</span><strong>历史记录未保存左右站位</strong><small>${FACTIONS[match.winner].name}战胜${FACTIONS[match.loser].name}</small><b>${match.duration || "--:--"}</b></article>`;
+      }
+      const left = FACTIONS[match.left];
+      const right = FACTIONS[match.right];
+      const winner = FACTIONS[match.winner];
+      return `<article class="tournament-match-detail" style="--winner-color:${winner.color}">
+        <span>第 ${match.edition} 届 · ${stage}</span>
+        <strong><i>左</i>${left.name}<em>VS</em>${right.name}<i>右</i></strong>
+        <small>要塞 ${match.leftHp} : ${match.rightHp} · 出兵 ${match.leftSpawns} : ${match.rightSpawns}</small>
+        <b>${winner.name}胜 · ${match.duration}</b>
+      </article>`;
+    }).join("")
+    : `<article class="tournament-match-detail empty"><span>暂无对局明细</span><strong>完成一场锦标赛后开始记录</strong><small>将显示左右站位、血量、出兵与耗时</small></article>`;
+
+  ui.tournamentHistory.innerHTML = tournamentStats.history.length
+    ? tournamentStats.history.slice(0, 8).map((edition) => {
+      const champion = FACTIONS[edition.champion];
+      const matches = (edition.matches || []).map((match) => match.left && match.right
+        ? `${FACTIONS[match.left].shortName}(左) VS ${FACTIONS[match.right].shortName}(右)：${FACTIONS[match.winner].shortName}胜`
+        : `${FACTIONS[match.winner].shortName}胜${FACTIONS[match.loser].shortName}`).join(" · ");
+      return `<li style="--history-color:${champion.color}"><strong>第 ${edition.edition} 届</strong><span>${matches}</span><b>${champion.name}总冠军</b></li>`;
+    }).join("")
+    : `<li><strong>暂无战报</strong><span>完成首届锦标赛后自动记录三场结果</span><b>统计持续累积</b></li>`;
+}
+
+function updateMatchContext() {
+  if (tournament.active && tournament.bracket) {
+    const stage = TOURNAMENT_STAGE_LABELS[tournament.stageIndex];
+    ui.matchSeriesLabel.textContent = `第 ${tournament.edition} 届锦标赛 · ${stage}`;
+    ui.roundStatusLabel.textContent = stage;
+  } else {
+    ui.matchSeriesLabel.textContent = "全自动斗技场 · 单场模式";
+    ui.roundStatusLabel.textContent = "无人干预";
+  }
+  renderTournamentUI();
+}
+
+function clearTournamentAdvance() {
+  if (tournament.advanceTimer) clearTimeout(tournament.advanceTimer);
+  tournament.advanceTimer = null;
+}
+
+function stopTournamentRun() {
+  clearTournamentAdvance();
+  tournament.active = false;
+  tournament.stageIndex = 0;
+  tournament.bracket = null;
+  updateMatchContext();
+}
+
+function openTournamentDraw() {
+  state.started = false;
+  state.drawing = false;
+  resetGame(false);
+  ui.resultModal.hidden = true;
+  ui.drawScreen.hidden = false;
+  ui.drawScreen.classList.remove("leaving");
+  document.body.classList.add("draw-open");
+  ui.drawStart.disabled = true;
+  ui.drawTokens.forEach((token) => token.classList.remove("selected", "not-selected", "active"));
+  document.querySelectorAll(".draw-result").forEach((result) => result.classList.remove("revealed"));
+  ui.drawLeftName.textContent = "待抽取";
+  ui.drawRightName.textContent = "待抽取";
+  ui.drawLeftSigil.textContent = "?";
+  ui.drawRightSigil.textContent = "?";
+  ui.drawStatus.textContent = `第 ${tournamentStats.editions + 1} 届锦标赛即将抽签`;
+  setTimeout(() => runFactionDraw(), 700);
+}
+
+function advanceTournament() {
+  clearTournamentAdvance();
+  if (!tournament.active || !state.ended) return;
+  ui.resultModal.hidden = true;
+  if (tournament.stageIndex < 2) {
+    tournament.stageIndex += 1;
+    const [leftKey, rightKey] = tournamentPair();
+    beginMatch(leftKey, rightKey);
+    return;
+  }
+  openTournamentDraw();
+}
+
+function scheduleTournamentAdvance(delay) {
+  clearTournamentAdvance();
+  tournament.advanceTimer = setTimeout(advanceTournament, delay);
+}
+
+function recordTournamentResult(winnerSide, loserSide) {
+  const leftKey = state.leftFaction;
+  const rightKey = state.rightFaction;
+  const winnerKey = factionKeyForSide(winnerSide);
+  const loserKey = factionKeyForSide(loserSide);
+  const result = {
+    stageIndex: tournament.stageIndex,
+    left: leftKey,
+    right: rightKey,
+    winner: winnerKey,
+    loser: loserKey,
+    winnerSide,
+    duration: ui.battleTime.textContent,
+    durationSeconds: Math.round(state.elapsed),
+    leftHp: Math.round(state.playerHp),
+    rightHp: Math.round(state.enemyHp),
+    leftSpawns: state.leftSpawnCount,
+    rightSpawns: state.rightSpawnCount
+  };
+  tournament.bracket.results.push(result);
+  const leftStats = tournamentStats.factions[leftKey];
+  const rightStats = tournamentStats.factions[rightKey];
+  const winnerStats = tournamentStats.factions[winnerKey];
+  const loserStats = tournamentStats.factions[loserKey];
+  leftStats.left.played += 1;
+  rightStats.right.played += 1;
+  leftStats.opponents[rightKey].leftPlayed += 1;
+  rightStats.opponents[leftKey].rightPlayed += 1;
+  winnerStats.wins += 1;
+  loserStats.losses += 1;
+  winnerStats.opponents[loserKey].wins += 1;
+  loserStats.opponents[winnerKey].losses += 1;
+  if (winnerSide === "left") {
+    leftStats.left.wins += 1;
+    leftStats.opponents[rightKey].leftWins += 1;
+  } else {
+    rightStats.right.wins += 1;
+    rightStats.opponents[leftKey].rightWins += 1;
+  }
+  if (tournament.stageIndex < 2) {
+    tournament.bracket.finalists[tournament.stageIndex] = winnerKey;
+  } else {
+    tournament.bracket.champion = winnerKey;
+    tournamentStats.editions += 1;
+    tournamentStats.factions[winnerKey].titles += 1;
+    tournamentStats.history.unshift({
+      edition: tournament.edition,
+      champion: winnerKey,
+      matches: tournament.bracket.results.map((match) => ({ ...match }))
+    });
+    tournamentStats.history = tournamentStats.history.slice(0, 12);
+  }
+  persistTournamentStats();
+  renderTournamentUI();
+  return result;
+}
+
 function checkResult() {
   if (state.ended || (state.playerHp > 0 && state.enemyHp > 0)) return;
   state.ended = true;
@@ -1343,9 +1691,23 @@ function checkResult() {
   const loserSide = winnerSide === "left" ? "right" : "left";
   const winner = factionForSide(winnerSide);
   const loser = factionForSide(loserSide);
-  ui.resultTitle.textContent = `${winner.name}获胜`;
+  if (tournament.active) {
+    recordTournamentResult(winnerSide, loserSide);
+    const isFinal = tournament.stageIndex === 2;
+    ui.resultEyebrow.textContent = `第 ${tournament.edition} 届 · ${TOURNAMENT_STAGE_LABELS[tournament.stageIndex]}`;
+    ui.resultTitle.textContent = isFinal ? `${winner.name}总冠军` : `${winner.name}晋级`;
+    ui.resultCopy.textContent = isFinal
+      ? `${winner.name}夺得第 ${tournament.edition} 届总冠军，下一届将自动重新抽签。`
+      : `${winner.name}击败${loser.name}，下一场将在短暂停留后自动开始。`;
+    document.querySelector("#result-restart").textContent = isFinal ? "立即开始下一届" : "立即进入下一场";
+    scheduleTournamentAdvance(isFinal ? 5200 : 3600);
+  } else {
+    ui.resultEyebrow.textContent = "自动对战结束";
+    ui.resultTitle.textContent = `${winner.name}获胜`;
+    ui.resultCopy.textContent = `${loser.base}已被${winner.name}攻破。`;
+    document.querySelector("#result-restart").textContent = "重新抽签";
+  }
   ui.resultTitle.style.color = winner.color;
-  ui.resultCopy.textContent = `${loser.base}已被${winner.name}攻破。`;
   ui.resultModal.hidden = false;
 }
 
@@ -1355,14 +1717,20 @@ function gameLoop(now) {
   if (state.running && !state.ended) {
     const dt = rawDt * state.speed;
     state.elapsed += dt;
+    if (!state.marbleOverdriveTriggered && state.elapsed >= MARBLE_OVERDRIVE_TIME) {
+      state.marbleOverdriveTriggered = true;
+      showCallout("战斗超过五分钟，双方主炮进入火力超频");
+      log("火力超频：双方上层主炮提升至每秒 2 颗弹珠。");
+    }
+    const marbleInterval = 1 / upperMarbleRate(state.elapsed);
     state.leftMarbleAccumulator += dt;
     state.rightMarbleAccumulator += dt;
-    if (state.leftMarbleAccumulator >= 1) {
-      state.leftMarbleAccumulator -= 1;
+    if (state.leftMarbleAccumulator >= marbleInterval) {
+      state.leftMarbleAccumulator -= marbleInterval;
       createUpperShot("left");
     }
-    if (state.rightMarbleAccumulator >= 1) {
-      state.rightMarbleAccumulator -= 1;
+    if (state.rightMarbleAccumulator >= marbleInterval) {
+      state.rightMarbleAccumulator -= marbleInterval;
       createUpperShot("right");
     }
     updatePhysicsWorlds(dt);
@@ -1405,6 +1773,7 @@ function resetGame(startRunning = true) {
     lastFrame: performance.now(),
     leftMarbleAccumulator: 0,
     rightMarbleAccumulator: 0,
+    marbleOverdriveTriggered: false,
     playerDefenseCooldown: 0,
     enemyDefenseCooldown: 0,
     playerFortressUltimateUsed: false,
@@ -1455,6 +1824,7 @@ function beginMatch(leftKey, rightKey) {
   state.started = true;
   configureMatchUI(leftKey, rightKey);
   resetGame(true);
+  updateMatchContext();
   document.body.classList.remove("draw-open");
   ui.drawScreen.classList.add("leaving");
   setTimeout(() => { ui.drawScreen.hidden = true; }, 520);
@@ -1474,13 +1844,40 @@ async function runFactionDraw() {
   ui.drawLeftSigil.textContent = "?";
   ui.drawRightSigil.textContent = "?";
 
-  const keys = Object.keys(FACTIONS);
   for (let turn = 0; turn < 16; turn += 1) {
     ui.drawTokens.forEach((token) => token.classList.remove("active"));
     ui.drawTokens[turn % ui.drawTokens.length].classList.add("active");
     await wait(65 + turn * 5);
   }
-  const shuffled = [...keys].sort(() => Math.random() - .5);
+  const shuffled = shuffledFactionKeys();
+  if (ui.tournamentToggle.checked) {
+    tournament.active = true;
+    tournament.edition = tournamentStats.editions + 1;
+    tournament.stageIndex = 0;
+    tournament.bracket = {
+      semifinals: [[shuffled[0], shuffled[1]], [shuffled[2], shuffled[3]]],
+      finalists: [],
+      results: [],
+      champion: null
+    };
+    const [leftKey, rightKey] = tournament.bracket.semifinals[0];
+    ui.drawTokens.forEach((token) => token.classList.add("selected"));
+    ui.drawTokens.forEach((token) => token.classList.remove("active"));
+    setDrawResult("left", leftKey);
+    setDrawResult("right", rightKey);
+    renderTournamentUI();
+    ui.drawStatus.textContent = `半决赛 A：${factionMatchup(tournament.bracket.semifinals[0])}`;
+    await wait(800);
+    ui.drawStatus.textContent = `半决赛 B：${factionMatchup(tournament.bracket.semifinals[1])}`;
+    await wait(1100);
+    ui.drawStatus.textContent = `第 ${tournament.edition} 届锦标赛开赛`;
+    await wait(650);
+    ui.drawArena.classList.remove("drawing");
+    state.drawing = false;
+    beginMatch(leftKey, rightKey);
+    return;
+  }
+  stopTournamentRun();
   const [leftKey, rightKey] = shuffled.slice(0, 2);
   ui.drawTokens.forEach((token) => token.classList.remove("active"));
   ui.drawStatus.textContent = "左侧签印揭晓";
@@ -1500,6 +1897,7 @@ async function runFactionDraw() {
 }
 
 function returnToDraw() {
+  stopTournamentRun();
   state.started = false;
   state.drawing = false;
   resetGame(false);
@@ -1508,13 +1906,15 @@ function returnToDraw() {
   ui.drawScreen.classList.remove("leaving");
   document.body.classList.add("draw-open");
   ui.drawStart.disabled = false;
-  ui.drawStatus.textContent = "签池待命";
+  ui.drawStatus.textContent = ui.tournamentToggle.checked ? "锦标赛签池待命" : "签池待命";
   ui.drawTokens.forEach((token) => token.classList.remove("selected", "not-selected", "active"));
   document.querySelectorAll(".draw-result").forEach((result) => result.classList.remove("revealed"));
   ui.drawLeftName.textContent = "待抽取";
   ui.drawRightName.textContent = "待抽取";
   ui.drawLeftSigil.textContent = "?";
   ui.drawRightSigil.textContent = "?";
+  ui.drawStart.textContent = ui.tournamentToggle.checked ? "开始锦标赛" : "开始抽签";
+  renderTournamentUI();
 }
 
 ui.pause.addEventListener("click", () => {
@@ -1535,24 +1935,86 @@ ui.speed.addEventListener("click", () => {
 
 const devToolsToggle = document.querySelector("#dev-tools-toggle");
 const devPanel = document.querySelector("#dev-panel");
+const devPanelClose = document.querySelector("#dev-panel-close");
+
+function setDevMode(enabled) {
+  document.body.classList.toggle("dev-mode", enabled);
+  devToolsToggle.setAttribute("aria-expanded", String(enabled));
+  devPanel.hidden = !enabled;
+}
+
+function clearBattleUnits() {
+  state.units = [];
+  [...state.unitProjectiles, ...state.defenseProjectiles, ...state.commanderEffects].forEach((item) => item.element.remove());
+  state.unitProjectiles = [];
+  state.defenseProjectiles = [];
+  state.commanderEffects = [];
+  ui.unitLayer.innerHTML = "";
+  document.querySelectorAll(".fortress-defense.firing").forEach((defense) => defense.classList.remove("firing"));
+  updateHud();
+  log("测试清场：全场士兵已清空。");
+}
+
 devToolsToggle.addEventListener("click", () => {
   const expanded = devToolsToggle.getAttribute("aria-expanded") === "true";
   devToolsToggle.setAttribute("aria-expanded", String(!expanded));
   devPanel.hidden = expanded;
 });
+devPanelClose.addEventListener("click", () => setDevMode(false));
 devPanel.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-dev-tier]");
-  if (!button || !state.started || state.ended) return;
+  const button = event.target.closest("button");
+  if (!button) return;
+  if (button.dataset.devAction === "match") {
+    state.drawing = false;
+    ui.drawArena.classList.remove("drawing");
+    stopTournamentRun();
+    beginMatch(document.querySelector("#dev-left-faction").value, document.querySelector("#dev-right-faction").value);
+    return;
+  }
+  if (button.dataset.devAction === "clear") {
+    if (state.started && !state.ended) clearBattleUnits();
+    return;
+  }
+  if (!state.started || state.ended) return;
   const side = button.dataset.devSide;
-  const tier = Number(button.dataset.devTier);
+  if (!side) return;
   const team = side === "left" ? "player" : "enemy";
   const factionKey = side === "left" ? state.leftFaction : state.rightFaction;
+  if (button.dataset.devAction === "commander") {
+    let commander = state.units.find((unit) => unit.team === team && unit.tier === 3 && unit.hp > 0);
+    if (!commander) {
+      commander = spawnUnit(team, factionKey, 3);
+    }
+    castCommanderSkill(commander);
+    renderUnits();
+    updateHud();
+    return;
+  }
+  if (button.dataset.devAction === "ultimate") {
+    castUltimate(side);
+    return;
+  }
+  if (button.dataset.devAction === "fortress") {
+    castUltimate(side, "fortress");
+    return;
+  }
+  if (button.dataset.devTier === undefined) return;
+  const tier = Number(button.dataset.devTier);
   const unit = spawnUnit(team, factionKey, tier);
-  unit.x = side === "left" ? 42 : 58;
   if (tier === 3) unit.commanderCooldown = .2;
   log(`测试部署：${FACTIONS[factionKey].units[tier].name}。`);
   renderUnits();
   updateHud();
+});
+
+document.querySelector(".brand").addEventListener("dblclick", () => {
+  setDevMode(!document.body.classList.contains("dev-mode"));
+});
+document.addEventListener("keydown", (event) => {
+  if (event.altKey && event.shiftKey && event.code === "KeyD") {
+    event.preventDefault();
+    setDevMode(!document.body.classList.contains("dev-mode"));
+  }
 });
 
 ui.audioButton.addEventListener("click", () => {
@@ -1567,11 +2029,37 @@ document.querySelector("#restart-button").addEventListener("click", () => {
 });
 document.querySelector("#result-restart").addEventListener("click", () => {
   ensureBgm();
-  returnToDraw();
+  if (tournament.active && state.ended) advanceTournament();
+  else returnToDraw();
 });
 ui.drawStart.addEventListener("click", () => {
   ensureBgm();
   runFactionDraw();
+});
+ui.tournamentToggle.addEventListener("change", () => {
+  ui.drawStart.textContent = ui.tournamentToggle.checked ? "开始锦标赛" : "开始抽签";
+  ui.drawStatus.textContent = ui.tournamentToggle.checked ? "锦标赛签池待命" : "签池待命";
+  renderTournamentUI();
+});
+ui.tournamentResetStats.addEventListener("click", () => {
+  if (ui.tournamentResetStats.dataset.confirm !== "true") {
+    ui.tournamentResetStats.dataset.confirm = "true";
+    ui.tournamentResetStats.textContent = "再次点击确认";
+    setTimeout(() => {
+      ui.tournamentResetStats.dataset.confirm = "false";
+      ui.tournamentResetStats.textContent = "清空统计";
+    }, 3000);
+    return;
+  }
+  const emptyStats = emptyTournamentStats();
+  tournamentStats.editions = 0;
+  tournamentStats.factions = emptyStats.factions;
+  tournamentStats.history = [];
+  tournament.edition = 1;
+  persistTournamentStats();
+  ui.tournamentResetStats.dataset.confirm = "false";
+  ui.tournamentResetStats.textContent = "清空统计";
+  renderTournamentUI();
 });
 
 document.addEventListener("pointerdown", ensureBgm, { once: true });
@@ -1581,4 +2069,5 @@ configureMatchUI(state.leftFaction, state.rightFaction);
 ui.audio.volume = .28;
 updateAudioButton();
 resetGame(false);
+renderTournamentUI();
 requestAnimationFrame(gameLoop);
